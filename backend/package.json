@@ -1,0 +1,23 @@
+{
+  "name": "pluwfun-peach-backend",
+  "version": "1.0.0",
+  "description": "Pluwfun Peach Shop Backend - Render Deployment",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "keywords": [],
+  "author": "fesuyen",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1",
+    "cors": "^2.8.6",
+    "dotenv": "^16.3.1",
+    "@supabase/supabase-js": "^2.38.4",
+    "nodemailer": "^6.9.7",
+    "multer": "^2.1.1",
+    "uuid": "^14.0.0",
+    "body-parser": "^1.20.2"
+  }
+}
