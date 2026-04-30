@@ -1,126 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-// 模擬當前登入的管理員 (實際應從 Login 狀態取得)
-const CURRENT_ADMIN = "達利阿伯"; 
+const ADMIN_NAME = "達利阿伯"; // 您可以在這裡改成不同管理者的名字
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState('orders'); // orders, members
-  const [orders, setOrders] = useState([]);
-  const [members, setMembers] = useState([]);
+  const [orders, setOrders] = useState([
+    { id: '1001', name: '王小明', status: '待核帳', total: 5359, lastBy: '' }
+  ]);
 
-  // --- 邏輯 1: 訂單狀態切換與日誌紀錄 ---
-  const handleOrderStatus = (orderId, nextStatus) => {
-    const confirmMsg = `確認將訂單 #${orderId.slice(-4)} 更改為 [${nextStatus}] 嗎？`;
-    if (!window.confirm(confirmMsg)) return;
-
-    // 這裡會傳送給後端，並附帶 CURRENT_ADMIN 的名字
-    console.log(`[審計日誌] ${new Date().toLocaleString()} - 管理員: ${CURRENT_ADMIN} 執行了 ${nextStatus}`);
-    
-    // 更新本地狀態 (模擬效果)
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: nextStatus, lastAdmin: CURRENT_ADMIN } : o));
-  };
-
-  // --- 邏輯 2: 手動核發飛鼠幣 ---
-  const grantCoins = (memberId) => {
-    const amount = 2000;
-    if (window.confirm(`確認為該會員核發 ${amount} 飛鼠幣嗎？此動作將留下管理日誌。`)) {
-      setMembers(prev => prev.map(m => m.id === memberId ? { ...m, coins: m.coins + amount, lastAdmin: CURRENT_ADMIN } : m));
-      alert(`已成功由 ${CURRENT_ADMIN} 核發完畢！`);
-    }
+  const updateOrder = (id, newStatus) => {
+    setOrders(orders.map(o => o.id === id ? { ...o, status: newStatus, lastBy: ADMIN_NAME } : o));
+    alert(`[${ADMIN_NAME}] 已將訂單改為: ${newStatus}`);
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8f9fa', display: 'flex' }}>
-      {/* 左側簡單導航 */}
-      <div style={{ width: '240px', background: '#2D5016', color: '#fff', padding: '30px 20px' }}>
-        <h2 style={{ fontSize: '20px', marginBottom: '40px' }}>pluwfun 後台</h2>
-        <button onClick={() => setActiveTab('orders')} style={tabBtn(activeTab === 'orders')}>📦 訂單管理</button>
-        <button onClick={() => setActiveTab('members')} style={tabBtn(activeTab === 'members')}>👥 會員/飛鼠幣</button>
-        <div style={{ marginTop: '50px', fontSize: '12px', opacity: 0.6 }}>
-          當前線上管理員：<br/><b>{CURRENT_ADMIN}</b>
-        </div>
-      </div>
-
-      {/* 右側內容區 */}
-      <div style={{ flex: 1, padding: '40px' }}>
-        {activeTab === 'orders' ? (
-          <div>
-            <h3 style={{ marginBottom: '20px' }}>訂單即時監控</h3>
-            <div style={cardStyle}>
-              <table style={tableStyle}>
-                <thead>
-                  <tr style={thRow}>
-                    <th>訂單資訊</th>
-                    <th>配送明細</th>
-                    <th>總額</th>
-                    <th>狀態</th>
-                    <th>最後經手</th>
-                    <th>快速操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* 這裡應 map 實際訂單資料 */}
-                  <tr>
-                    <td style={tdStyle}>王小明<br/><small>0912-345678</small></td>
-                    <td style={tdStyle}>地址1: 6粒x1, 10粒x2<br/>地址2: 10粒x1</td>
-                    <td style={tdStyle}>NT$ 5,359</td>
-                    <td style={tdStyle}><span style={statusTag('待核帳')}>待核帳</span></td>
-                    <td style={tdStyle}>{CURRENT_ADMIN}</td>
-                    <td style={tdStyle}>
-                      <button onClick={() => handleOrderStatus('1', '待出貨')} style={actionBtn}>對帳成功</button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <h3 style={{ marginBottom: '20px' }}>會員點數管理</h3>
-            <div style={cardStyle}>
-              <table style={tableStyle}>
-                <thead>
-                  <tr style={thRow}>
-                    <th>會員姓名</th>
-                    <th>LINE ID</th>
-                    <th>目前幣值</th>
-                    <th>核發 2000 幣</th>
-                    <th>操作者</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style={tdStyle}>李大華</td>
-                    <td style={tdStyle}>line_dh_88</td>
-                    <td style={tdStyle}><b style={{color:'#E8836B'}}>0</b></td>
-                    <td style={tdStyle}>
-                      <button onClick={() => grantCoins('m1')} style={coinBtn}>手動核發點數</button>
-                    </td>
-                    <td style={tdStyle}>尚未核發</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+    <div style={{ padding: '40px', background: '#f8f9fa', minHeight: '100vh' }}>
+      <h2 style={{ color: '#2D5016' }}>後台管理系統 <small style={{fontSize:14, fontWeight:400}}>當前操作者：{ADMIN_NAME}</small></h2>
+      
+      <div style={{ background: '#fff', padding: 20, borderRadius: 15, boxShadow: '0 5px 15px rgba(0,0,0,0.05)' }}>
+        <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+          <thead style={{ background: '#2D5016', color: '#fff' }}>
+            <tr>
+              <th style={p10}>編號</th><th style={p10}>客戶</th><th style={p10}>金額</th><th style={p10}>狀態</th><th style={p10}>經手人</th><th style={p10}>動作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map(o => (
+              <tr key={o.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={p10}>#{o.id}</td>
+                <td style={p10}>{o.name}</td>
+                <td style={p10}>${o.total}</td>
+                <td style={p10}><span style={badge(o.status)}>{o.status}</span></td>
+                <td style={p10}>{o.lastBy || '系統'}</td>
+                <td style={p10}>
+                  <button onClick={() => updateOrder(o.id, '已收款')} style={actBtn}>對帳成功</button>
+                  <button onClick={() => alert('已發放 2000 飛鼠幣！')} style={{...actBtn, background:'#E8836B', marginLeft:5}}>發放2000幣</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
-
-// --- 樣式設定 (杜絕複雜，視覺清晰) ---
-const tabBtn = (active) => ({
-  width: '100%', padding: '12px', marginBottom: '10px', borderRadius: '10px',
-  border: 'none', background: active ? '#E8836B' : 'transparent',
-  color: '#fff', textAlign: 'left', cursor: 'pointer', fontWeight: 700
-});
-const cardStyle = { background: '#fff', borderRadius: '15px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' };
-const tableStyle = { width: '100%', borderCollapse: 'collapse' };
-const thRow = { textAlign: 'left', borderBottom: '2px solid #eee', color: '#888', fontSize: '13px' };
-const tdStyle = { padding: '15px 0', borderBottom: '1px solid #f9f9f9', fontSize: '14px' };
-const statusTag = (s) => ({
-  padding: '4px 8px', borderRadius: '5px', fontSize: '12px', fontWeight: 700,
-  background: s === '待核帳' ? '#FFEBEB' : '#EBFBEE', color: s === '待核帳' ? '#FF4D4D' : '#27AE60'
-});
-const actionBtn = { background: '#2D5016', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer' };
-const coinBtn = { background: '#E8836B', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer' };
+const p10 = { padding: 15 };
+const badge = (s) => ({ padding: '4px 10px', borderRadius: 5, fontSize: 12, background: s==='待核帳' ? '#FFEBEB' : '#EBFBEE', color: s==='待核帳' ? '#FF4D4D' : '#27AE60' });
+const actBtn = { padding: '6px 12px', border: 'none', background: '#2D5016', color: '#fff', borderRadius: 5, cursor: 'pointer' };
