@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 
-const API = (import.meta.env.VITE_API_URL || '/api') + '/content?t=' + new Date().getTime()
+// 加入更強的隨機參數防止快取
+const API = (import.meta.env.VITE_API_URL || '/api') + '/content?v=' + Date.now()
 
 const Features = () => {
   const [content, setContent] = useState({})
@@ -10,36 +11,37 @@ const Features = () => {
       .then(res => res.json())
       .then(data => {
         const flat = {}
-        // 深度解析資料，確保無論資料層級多深都能抓到
         Object.entries(data).forEach(([k, v]) => { 
+          // 支援多種資料格式解析
           flat[k] = (v && typeof v === 'object' && v.value !== undefined) ? v.value : v 
         })
+        console.log("資料對接檢查:", flat) // 您可以按 F12 檢查控制台
         setContent(flat)
       })
       .catch(err => console.error('API 連線失敗:', err))
   }, [])
 
-  // 1. 這裡的 Key 完全對齊後台欄位：feature_1_title, feature_1_desc 等
-  // 2. 圖片路徑重新配置，第一張確保不是農民照
+  // 1. 文案：支援兩種可能的 Key (desc 或 description)，移除所有 ... 預設文字
+  // 2. 圖片：還原原始設計順序 (阿伯 -> 七分熟 -> 禮盒 -> 露營)
   const featureData = [
     { 
       title: content.feature_1_title || '一輩子的果園守護：達利阿伯的親採承諾', 
-      desc: content.feature_1_desc || '來自拉拉山雪霧鬧部落的達利阿伯...', 
-      img: '/images/feature_box.jpg' 
+      desc: content.feature_1_desc || content.feature_1_description || '正在讀取後台完整內容，請稍候...', 
+      img: '/images/feature_farmer.webp' 
     },
     { 
       title: content.feature_2_title || '黃金 70% 熟度：精準掌控甜度與口感的極致關鍵', 
-      desc: content.feature_2_desc || '品嚐頂級蜜桃的關鍵，在於採收時機...', 
+      desc: content.feature_2_desc || content.feature_2_description || '正在讀取後台完整內容，請稍候...', 
       img: '/images/feature_7ripe.jpg'
     },
     { 
       title: content.feature_3_title || '分毫不差：淨重足量，讓您送禮有面子、自用更踏實', 
-      desc: content.feature_3_desc || '提供 6-12 粒精選規格...', 
+      desc: content.feature_3_desc || content.feature_3_description || '正在讀取後台完整內容，請稍候...', 
       img: '/images/feature_box.jpg' 
     },
     { 
       title: content.feature_4_title || '不只是蜜桃：1,999 元入會，開啟您的山林豪華饗宴', 
-      desc: content.feature_4_desc || '入會 $1,999 元，不只是購買蜜桃...', 
+      desc: content.feature_4_desc || content.feature_4_description || '正在讀取後台完整內容，請稍候...', 
       img: '/images/feature_camping.png'
     }
   ]
@@ -54,11 +56,11 @@ const Features = () => {
           <div style={{ width: '40px', height: '3px', background: '#E8836B', margin: '20px auto' }}></div>
         </div>
 
-        {/* 2x2 對稱佈局：強制格線 */}
+        {/* 2x2 對稱格線：在電腦版強制均分兩欄 */}
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(2, 1fr)', // 在桌機強制平均分為兩欄
-          gap: '40px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', 
+          gap: '40px' 
         }}>
           {featureData.map((item, index) => (
             <div key={index} style={{
@@ -70,24 +72,23 @@ const Features = () => {
               display: 'flex',
               flexDirection: 'column'
             }}>
-              {/* 圖片區域：使用固定高度 + object-fit，解決大小不一問題 */}
-              <div style={{ width: '100%', height: '260px', backgroundColor: '#f5f5f5', overflow: 'hidden' }}>
+              {/* 圖片區域：強制固定高度與比例，解決 image_d79130.jpg 的對齊問題 */}
+              <div style={{ width: '100%', height: '280px', backgroundColor: '#f9f9f9' }}>
                 <img 
                   src={item.img} 
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
                   alt="Feature"
                 />
               </div>
               
-              {/* 文字區域：固定高度確保底部對齊 */}
-              <div style={{ padding: '35px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '35px', flex: 1 }}>
                 <h3 style={{ 
                   fontSize: '20px', 
                   color: '#2D5016', 
                   marginBottom: '18px', 
                   fontWeight: '700', 
                   lineHeight: '1.4',
-                  minHeight: '2.8em' // 確保標題就算換行也維持一樣高度
+                  minHeight: '2.8em' // 確保標題高度一致
                 }}>
                   {item.title}
                 </h3>
@@ -96,7 +97,7 @@ const Features = () => {
                   lineHeight: '1.8', 
                   fontSize: '15px', 
                   margin: 0,
-                  textAlign: 'justify'
+                  whiteSpace: 'pre-wrap' // 保留後台輸入的換行
                 }}>
                   {item.desc}
                 </p>
@@ -105,15 +106,6 @@ const Features = () => {
           ))}
         </div>
       </div>
-
-      {/* 手機版適應：寬度小於 992px 時自動變單欄 */}
-      <style>{`
-        @media (max-width: 992px) {
-          #features > div > div:last-child {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </section>
   )
 }
