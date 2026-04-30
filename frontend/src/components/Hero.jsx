@@ -1,4 +1,24 @@
+import { useState, useEffect } from 'react'
+
+// 定義連線到後端的地址
+const API = (import.meta.env.VITE_API_URL || '') + '/api/content'
+
 const Hero = () => {
+  const [content, setContent] = useState({})
+
+  // 組件載入時，立刻去後端抓取最新文字
+  useEffect(() => {
+    fetch(API)
+      .then(res => res.json())
+      .then(data => {
+        const flat = {}
+        // 將資料格式轉換為前端好讀取的樣子
+        Object.entries(data).forEach(([k, v]) => { flat[k] = v.value || v })
+        setContent(flat)
+      })
+      .catch(err => console.error('抓取首頁資料失敗:', err))
+  }, [])
+
   const scrollToOrder = () => {
     document.getElementById('order')?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -13,24 +33,22 @@ const Hero = () => {
       justifyContent: 'center',
       overflow: 'hidden',
     }}>
-      {/* Background image */}
+      {/* 背景圖片：如果後台有傳新圖就換掉，沒有就用預設圖 */}
       <div style={{
         position: 'absolute',
         inset: 0,
-        backgroundImage: 'url(/images/hero-peach.webp)',
+        backgroundImage: `url(${content.hero_bg_image || '/images/hero-peach.webp'})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         filter: 'brightness(0.7)',
       }} />
       
-      {/* Gradient overlay */}
       <div style={{
         position: 'absolute',
         inset: 0,
         background: 'linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 40%, rgba(45,80,22,0.6) 100%)',
       }} />
 
-      {/* Content */}
       <div style={{
         position: 'relative',
         zIndex: 2,
@@ -39,7 +57,7 @@ const Hero = () => {
         maxWidth: 900,
         animation: 'fadeInUp 1s ease-out',
       }}>
-        {/* Badge */}
+        {/* 徽章文字 */}
         <div style={{
           display: 'inline-block',
           background: 'rgba(232, 131, 107, 0.9)',
@@ -52,7 +70,7 @@ const Hero = () => {
           marginBottom: 24,
           backdropFilter: 'blur(10px)',
         }}>
-          🍑 2026 限量預購中
+          {content.hero_badge || '🍑 2026 限量預購中'}
         </div>
 
         <h1 style={{
@@ -63,9 +81,10 @@ const Hero = () => {
           marginBottom: 20,
           textShadow: '0 2px 20px rgba(0,0,0,0.3)',
         }}>
-          拉拉山五月桃
+          {content.hero_title || '拉拉山五月桃'}
           <br />
-          <span style={{ color: '#F0D68A' }}>SSS級生化甜度</span>產地直送
+          <span style={{ color: '#F0D68A' }}>{content.hero_title_highlight || 'SSS級生化甜度'}</span>
+          {content.hero_title_suffix || '產地直送'}
         </h1>
 
         <p style={{
@@ -76,7 +95,7 @@ const Hero = () => {
           lineHeight: 1.6,
           textShadow: '0 1px 10px rgba(0,0,0,0.3)',
         }}>
-          飛鼠嚴選 · 雪霧鬧部落達利阿伯親手採收
+          {content.hero_subtitle || '飛鼠嚴選 · 雪霧鬧部落達利阿伯親手採收'}
         </p>
 
         <button onClick={scrollToOrder} style={{
@@ -91,31 +110,9 @@ const Hero = () => {
           boxShadow: '0 8px 30px rgba(232, 131, 107, 0.5)',
           transition: 'all 0.3s ease',
           cursor: 'pointer',
-        }}
-        onMouseEnter={e => {
-          e.target.style.transform = 'translateY(-3px)'
-          e.target.style.boxShadow = '0 12px 40px rgba(232, 131, 107, 0.6)'
-        }}
-        onMouseLeave={e => {
-          e.target.style.transform = 'translateY(0)'
-          e.target.style.boxShadow = '0 8px 30px rgba(232, 131, 107, 0.5)'
         }}>
           立即選購 →
         </button>
-
-        {/* Scroll indicator */}
-        <div style={{
-          position: 'absolute',
-          bottom: -80,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          color: 'rgba(255,255,255,0.6)',
-          fontSize: 14,
-          animation: 'pulse 2s infinite',
-        }}>
-          <div style={{ marginBottom: 8 }}>向下探索</div>
-          <div style={{ fontSize: 24 }}>↓</div>
-        </div>
       </div>
     </section>
   )
