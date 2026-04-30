@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 
 // 定義連線到後端的地址
-const API = (import.meta.env.VITE_API_URL || '') + '/api/content'
+const API = (import.meta.env.VITE_API_URL || '/api') + '/content'
 
 const Hero = () => {
   const [content, setContent] = useState({})
