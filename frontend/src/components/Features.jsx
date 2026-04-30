@@ -1,48 +1,51 @@
 import { useState, useEffect } from 'react'
 
-// 加入更強的隨機參數防止快取
-const API = (import.meta.env.VITE_API_URL || '/api') + '/content?v=' + Date.now()
+// 強制加上時間戳記與 no-cache，確保後台更新後前台立即同步
+const API = `${import.meta.env.VITE_API_URL || '/api'}/content?t=${Date.now()}`
 
 const Features = () => {
   const [content, setContent] = useState({})
 
   useEffect(() => {
-    fetch(API)
+    fetch(API, { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         const flat = {}
         Object.entries(data).forEach(([k, v]) => { 
-          // 支援多種資料格式解析
+          // 自動解構後台物件資料
           flat[k] = (v && typeof v === 'object' && v.value !== undefined) ? v.value : v 
         })
-        console.log("資料對接檢查:", flat) // 您可以按 F12 檢查控制台
         setContent(flat)
       })
-      .catch(err => console.error('API 連線失敗:', err))
+      .catch(err => console.error('後台資料連線失敗:', err))
   }, [])
 
-  // 1. 文案：支援兩種可能的 Key (desc 或 description)，移除所有 ... 預設文字
-  // 2. 圖片：還原原始設計順序 (阿伯 -> 七分熟 -> 禮盒 -> 露營)
-  const featureData = [
+  // 根據您的後台截圖 (image_d798af.png) 精準對應資料
+  // 圖片路徑固定，文字完全依賴 content 狀態
+  const featureItems = [
     { 
-      title: content.feature_1_title || '一輩子的果園守護：達利阿伯的親採承諾', 
-      desc: content.feature_1_desc || content.feature_1_description || '正在讀取後台完整內容，請稍候...', 
-      img: '/images/feature_farmer.webp' 
+      id: 1, 
+      img: '/images/feature_farmer.webp', // 阿伯
+      title: content.feature_1_title,
+      desc: content.feature_1_desc || content.feature_1_description || content.feature_1_content 
     },
     { 
-      title: content.feature_2_title || '黃金 70% 熟度：精準掌控甜度與口感的極致關鍵', 
-      desc: content.feature_2_desc || content.feature_2_description || '正在讀取後台完整內容，請稍候...', 
-      img: '/images/feature_7ripe.jpg'
+      id: 2, 
+      img: '/images/feature_7ripe.jpg', // 七分熟
+      title: content.feature_2_title,
+      desc: content.feature_2_desc || content.feature_2_description || content.feature_2_content 
     },
     { 
-      title: content.feature_3_title || '分毫不差：淨重足量，讓您送禮有面子、自用更踏實', 
-      desc: content.feature_3_desc || content.feature_3_description || '正在讀取後台完整內容，請稍候...', 
-      img: '/images/feature_box.jpg' 
+      id: 3, 
+      img: '/images/feature_box.jpg', // 禮盒
+      title: content.feature_3_title,
+      desc: content.feature_3_desc || content.feature_3_description || content.feature_3_content 
     },
     { 
-      title: content.feature_4_title || '不只是蜜桃：1,999 元入會，開啟您的山林豪華饗宴', 
-      desc: content.feature_4_desc || content.feature_4_description || '正在讀取後台完整內容，請稍候...', 
-      img: '/images/feature_camping.png'
+      id: 4, 
+      img: '/images/feature_camping.png', // 露營
+      title: content.feature_4_title,
+      desc: content.feature_4_desc || content.feature_4_description || content.feature_4_content 
     }
   ]
 
@@ -56,14 +59,14 @@ const Features = () => {
           <div style={{ width: '40px', height: '3px', background: '#E8836B', margin: '20px auto' }}></div>
         </div>
 
-        {/* 2x2 對稱格線：在電腦版強制均分兩欄 */}
+        {/* 2x2 對稱格線：電腦版強制兩欄，解決排版歪掉問題 */}
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))', 
           gap: '40px' 
         }}>
-          {featureData.map((item, index) => (
-            <div key={index} style={{
+          {featureItems.map((item) => (
+            <div key={item.id} style={{
               background: '#fff',
               borderRadius: '24px',
               overflow: 'hidden',
@@ -72,34 +75,37 @@ const Features = () => {
               display: 'flex',
               flexDirection: 'column'
             }}>
-              {/* 圖片區域：強制固定高度與比例，解決 image_d79130.jpg 的對齊問題 */}
-              <div style={{ width: '100%', height: '280px', backgroundColor: '#f9f9f9' }}>
+              {/* 圖片容器：解決 image_d73af9.jpg 圖片大小不一的關鍵 */}
+              <div style={{ width: '100%', aspectRatio: '16 / 9', backgroundColor: '#f5f5f5', overflow: 'hidden' }}>
                 <img 
                   src={item.img} 
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} 
-                  alt="Feature"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  alt="Feature Image"
                 />
               </div>
               
               <div style={{ padding: '35px', flex: 1 }}>
+                {/* 主題標題：完全對應後台 */}
                 <h3 style={{ 
                   fontSize: '20px', 
                   color: '#2D5016', 
                   marginBottom: '18px', 
                   fontWeight: '700', 
-                  lineHeight: '1.4',
-                  minHeight: '2.8em' // 確保標題高度一致
+                  lineHeight: '1.4'
                 }}>
-                  {item.title}
+                  {item.title || '無標題內容'}
                 </h3>
+                
+                {/* 描述文案：完全對應後台，不設字數限制，保留換行 */}
                 <p style={{ 
                   color: '#666', 
                   lineHeight: '1.8', 
                   fontSize: '15px', 
                   margin: 0,
-                  whiteSpace: 'pre-wrap' // 保留後台輸入的換行
+                  whiteSpace: 'pre-wrap', // 保留後台輸入的換行
+                  textAlign: 'justify'
                 }}>
-                  {item.desc}
+                  {item.desc || '暫無描述內容'}
                 </p>
               </div>
             </div>
