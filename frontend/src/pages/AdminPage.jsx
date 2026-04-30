@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-const API = '/api/admin'
+const API = (import.meta.env.VITE_API_URL || '/api') + '/admin'
 
 // ===== Styles =====
 const colors = {
