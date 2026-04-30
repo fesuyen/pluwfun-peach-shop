@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const API = (import.meta.env.VITE_API_URL || '') + '/api/content'
+const API = (import.meta.env.VITE_API_URL || '/api') + '/content'
 
 const FarmerStory = () => {
   const [content, setContent] = useState({})
