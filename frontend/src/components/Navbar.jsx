@@ -1,128 +1,38 @@
-import { useState, useEffect } from 'react'
-
-const styles = {
-  nav: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-    transition: 'all 0.3s ease',
-    padding: '0 24px',
-  },
-  inner: {
-    maxWidth: 1200,
-    margin: '0 auto',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    height: 70,
-  },
-  logo: {
-    fontSize: 24,
-    fontWeight: 700,
-    letterSpacing: '2px',
-    color: '#fff',
-  },
-  links: {
-    display: 'flex',
-    gap: 28,
-    alignItems: 'center',
-  },
-  link: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: 500,
-    cursor: 'pointer',
-    transition: 'color 0.3s',
-    background: 'none',
-    border: 'none',
-    padding: 0,
-  },
-  ctaBtn: {
-    background: '#E8836B',
-    color: '#fff',
-    border: 'none',
-    padding: '10px 24px',
-    borderRadius: 30,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'all 0.3s',
-  },
-  mobileBtn: {
-    display: 'none',
-    background: 'none',
-    border: 'none',
-    color: '#fff',
-    fontSize: 28,
-    cursor: 'pointer',
-  },
-}
+import React from 'react';
 
 export default function Navbar() {
-  const [scrolled, setScrolled] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50)
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  const scrollTo = (id) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-    setMobileOpen(false)
-  }
-
-  const navBg = scrolled
-    ? 'rgba(45, 80, 22, 0.95)'
-    : 'rgba(0,0,0,0.15)'
+  const logoUrl = "https://cdn.phototourl.com/free/2026-04-04-bb9388dc-1fdd-40db-bd77-1c117183e3a1.png";
 
   return (
-    <>
-      <nav style={{ ...styles.nav, background: navBg, backdropFilter: scrolled ? 'blur(10px)' : 'none' }}>
-        <div style={styles.inner}>
-          <div style={styles.logo}>pluwfun</div>
-          <div style={styles.links} className="nav-links">
-            <button style={styles.link} onClick={() => scrollTo('features')}>產品特色</button>
-            <button style={styles.link} onClick={() => scrollTo('story')}>農民故事</button>
-            <button style={styles.link} onClick={() => scrollTo('order')}>立即訂購</button>
-            <button style={styles.link} onClick={() => scrollTo('membership')}>會員方案</button>
-            <button style={styles.link} onClick={() => scrollTo('faq')}>常見問題</button>
-            <button style={styles.ctaBtn} onClick={() => scrollTo('order')}>立即選購</button>
-          </div>
-          <button style={styles.mobileBtn} className="mobile-menu-btn" onClick={() => setMobileOpen(!mobileOpen)}>
-            {mobileOpen ? '✕' : '☰'}
-          </button>
+    <nav style={{
+      position: 'fixed', top: 0, width: '100%', zIndex: 1000,
+      background: 'rgba(255, 255, 255, 0.95)',
+      backdropFilter: 'blur(10px)',
+      boxShadow: '0 2px 20px rgba(0,0,0,0.05)',
+      padding: '12px 0'
+    }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px' }}>
+        
+        {/* Logo 位置：左上角 */}
+        <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <img 
+            src={logoUrl} 
+            alt="pluwfun logo" 
+            style={{ height: '45px', width: 'auto', objectFit: 'contain' }} 
+          />
+        </a>
+
+        {/* 導覽選單 */}
+        <div style={{ display: 'flex', gap: '25px', fontSize: '15px', fontWeight: '600' }}>
+          <a href="#features" style={navLink}>產品特色</a>
+          <a href="#farmer" style={navLink}>農民故事</a>
+          <a href="#order-section" style={navLink}>立即訂購</a>
+          <a href="#membership" style={navLink}>會員方案</a>
+          <a href="/admin" style={{ ...navLink, color: '#E8836B' }}>管理後台</a>
         </div>
-      </nav>
-      {mobileOpen && (
-        <div className="mobile-menu-overlay" style={{
-          position: 'fixed', top: 70, left: 0, right: 0, bottom: 0,
-          background: 'rgba(45, 80, 22, 0.97)', zIndex: 999,
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          paddingTop: 40, gap: 24, animation: 'fadeIn 0.3s ease',
-        }}>
-          {['features', 'story', 'order', 'membership', 'faq'].map((id, i) => {
-            const labels = ['產品特色', '農民故事', '立即訂購', '會員方案', '常見問題']
-            return (
-              <button key={id} onClick={() => scrollTo(id)} style={{
-                ...styles.link, fontSize: 20, padding: '12px 0',
-              }}>{labels[i]}</button>
-            )
-          })}
-          <button style={{ ...styles.ctaBtn, fontSize: 18, padding: '14px 40px', marginTop: 16 }} onClick={() => scrollTo('order')}>
-            立即選購
-          </button>
-        </div>
-      )}
-      <style>{`
-        @media (max-width: 768px) {
-          .nav-links { display: none !important; }
-          .mobile-menu-btn { display: block !important; }
-        }
-      `}</style>
-    </>
-  )
+      </div>
+    </nav>
+  );
 }
+
+const navLink = { color: '#2D5016', textDecoration: 'none', transition: '0.3s' };
