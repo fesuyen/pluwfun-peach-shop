@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pluwfun 會員限定拉拉山五月桃預購</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Pluwfun 首頁">
+        <img class="brand-logo" src="./public/images/pluwfun-logo-wide.png" alt="Pluwfun" />
+      </a>
+      <nav>
+        <a href="#order">立即訂購</a>
+        <a href="#member">會員方案</a>
+        <a href="#faq">常見問題</a>
+        <a href="#admin">管理後台</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <img src="./public/images/hero-peach-membership.png" alt="拉拉山五月桃與包裝盒" />
+        <div class="hero-copy">
+          <p class="eyebrow">Pluwfun 會員限定</p>
+          <h1>拉拉山五月桃<br />產地直送預購</h1>
+          <p>來自桃園復興區拉拉山、雪霧鬧部落。7 分熟安心宅配，會員每盒可折抵 50 飛鼠幣。</p>
+          <div class="hero-actions">
+            <a class="button primary" href="https://lin.ee/5vs3GWy" target="_blank" rel="noreferrer">加入 LINE 會員</a>
+            <a class="button secondary" href="#order">立即預訂五月桃</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section intro-grid">
+        <article>
+          <img src="./public/images/farmer-holding-peach.jpg" alt="果農手拿五月桃" />
+          <h2>一輩子的果園守護</h2>
+          <p>父親的五月桃由職人手採承諾，Pluwfun 提供給會員的桃子，保證來自拉拉山、雪霧鬧部落。</p>
+        </article>
+        <article>
+          <img src="./public/images/seven-ripe-shipping.png" alt="七分熟宅配告知" />
+          <h2>堅持 7 分熟出貨</h2>
+          <p>8-9 分熟的桃子最香甜，但宅配搬運容易受傷。7 分熟能讓會員收到更安心、可熟成的桃子。</p>
+        </article>
+        <article>
+          <img src="./public/images/peach-weight-box.png" alt="五月桃足重包裝" />
+          <h2>足重分級包裝</h2>
+          <p>每盒淨重約 2 斤 4 兩至 2 斤 6 兩，依天然果型分級，顆數與大小會因果況略有差異。</p>
+        </article>
+      </section>
+
+      <section class="section split" id="member">
+        <img src="./public/images/membership-camping-banner.png" alt="飛鼠不渴豪華露營會員方案" />
+        <div>
+          <p class="eyebrow">年度會員方案</p>
+          <h2>加入 1999 元，解鎖 6000+ 元價值</h2>
+          <ul class="check-list">
+            <li>飛鼠不渴豪華帳篷平日 0 元入住，原價 3600 元</li>
+            <li>2000 飛鼠幣在地消費折抵，本次專案活動使用期限為 1.5 年</li>
+            <li>父親的五月桃會員限定預購，每盒可折抵 50 飛鼠幣</li>
+          </ul>
+          <div class="partner-tags" aria-label="Pluwfun 合作店家類型">
+            <span>露營</span><span>民宿</span><span>農民</span><span>小吃</span><span>餐飲</span><span>活動</span><span>咖啡</span><span>甜點</span>
+          </div>
+          <a class="button primary" href="https://lin.ee/5vs3GWy" target="_blank" rel="noreferrer">到 LINE 完成會員加入</a>
+        </div>
+      </section>
+
+      <section class="section order-section" id="order">
+        <div class="section-heading">
+          <p class="eyebrow">訂購流程</p>
+          <h2>選規格、分地址、系統自動算總額</h2>
+          <p>前台下單會同步產生管理後台訂單、保留庫存、計算飛鼠幣折抵與農民分潤。</p>
+        </div>
+
+        <form id="orderForm" class="order-layout">
+          <div class="panel">
+            <h3>1. 會員與聯絡資料</h3>
+            <div class="field-grid">
+              <label>姓名<input id="customerName" required placeholder="請輸入姓名" /></label>
+              <label>手機<input id="customerPhone" required placeholder="09xx-xxx-xxx" /></label>
+              <label>LINE 名稱<input id="lineName" required placeholder="方便核對會員" /></label>
+            </div>
+            <div class="choice-row">
+              <label><input type="radio" name="memberMode" value="existing" checked /> 已是付費會員</label>
+              <label><input type="radio" name="memberMode" value="join" /> 本次加入 1999 會員</label>
+              <label><input type="radio" name="memberMode" value="none" /> 非會員不折抵</label>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>2. 選擇五月桃規格</h3>
+            <div id="productList" class="product-list"></div>
+          </div>
+
+          <div class="panel">
+            <h3>3. 取貨與寄送</h3>
+            <div class="choice-row">
+              <label><input type="radio" name="deliveryMode" value="pickup" checked /> 自取</label>
+              <label><input type="radio" name="deliveryMode" value="single" /> 宅配單點</label>
+              <label><input type="radio" name="deliveryMode" value="multi" /> 宅配多點</label>
+            </div>
+            <div id="pickupInfo" class="notice">
+              自取地點：桃園市復興區高義里雪霧鬧 7鄰7號
+              <a href="https://maps.app.goo.gl/nqcc2gMdEYtkxktw6" target="_blank" rel="noreferrer">開啟 Google 地圖</a>
+            </div>
+            <div id="shipmentArea" class="shipment-area"></div>
+          </div>
+
+          <div class="panel">
+            <h3>4. 桃子採購注意事項</h3>
+            <p class="required-note">以下為必填同意項目，三項都勾選後才可以完成訂單採購。</p>
+            <div class="terms">
+              <label><input id="agreeFruit" type="checkbox" required /> 我了解五月桃為天然農產品，大小、熟度、出貨時間會依產地與採收狀況調整。</label>
+              <label><input id="agreeShipping" type="checkbox" required /> 我了解無法保證指定日期到貨，Pluwfun 將依訂購順序與每日採收量安排出貨。</label>
+              <label><input id="agreeUnbox" type="checkbox" required /> 我了解收到後請於 24 小時內錄影開箱，如有問題請聯繫 Pluwfun LINE 官方帳號。</label>
+            </div>
+          </div>
+
+          <aside class="summary panel">
+            <h3>訂單明細</h3>
+            <div id="summaryContent"></div>
+            <button class="button primary full" type="submit">送出訂單</button>
+            <p class="small">飛鼠幣折抵僅限已付費會員或本次同步加入年度會員者。若會員費未完成付款，Pluwfun 保留調整折抵與訂單金額的權利。</p>
+          </aside>
+        </form>
+      </section>
+
+      <section class="section split">
+        <img src="./public/images/farmers-orchard.png" alt="拉拉山雪霧鬧果園與農民" />
+        <div>
+          <p class="eyebrow">產地與出貨</p>
+          <h2>每日依熟度與採收量安排</h2>
+          <p>為確保桃子來自保證區域，出貨會依訂購優先順序、天候、熟度與採收量安排。若需展延，會通知會員。</p>
+        </div>
+      </section>
+
+      <section class="section faq" id="faq">
+        <div class="section-heading">
+          <p class="eyebrow">Q&A</p>
+          <h2>購買桃子與會員常見問題</h2>
+        </div>
+        <details open>
+          <summary>為什麼不是寄 8-9 分熟的桃子？</summary>
+          <p>8-9 分熟桃子香氣明顯，但放入盒中再經宅配搬運容易受傷，收到後 1-2 天可能變色或局部潰爛。7 分熟能讓會員收到更安心、可熟成的桃子。</p>
+        </details>
+        <details>
+          <summary>飛鼠幣折抵誰可以使用？</summary>
+          <p>只有已付費 Pluwfun 年度會員，或本次訂單同步加入 1999 年度會員者，可以使用每盒 50 飛鼠幣折抵。本次專案活動飛鼠幣使用期限為 1.5 年，讓會員有更多機會到復興區合作店家折抵使用。</p>
+        </details>
+        <details>
+          <summary>可以指定日期到貨嗎？</summary>
+          <p>無法保證指定日到貨。五月桃需依每日採收量、熟度與天候安排，Pluwfun 會依訂購優先順序出貨。</p>
+        </details>
+        <details>
+          <summary>宅配費怎麼計算？</summary>
+          <p>低溫宅配依每個地址盒數計算，1-2 盒 150 元、3-4 盒 210 元、5-6 盒 270 元。多點寄送會每個地址分開計算。</p>
+        </details>
+      </section>
+
+      <section class="section line-block">
+        <div>
+          <p class="eyebrow">LINE 會員系統</p>
+          <h2>加入 Pluwfun LINE 官方帳號</h2>
+          <p>會員加入、飛鼠幣發放、優惠券與訂單客服，都會以 LINE 官方帳號為主要入口。</p>
+          <a class="button primary" href="https://lin.ee/5vs3GWy" target="_blank" rel="noreferrer">點我加入 LINE</a>
+        </div>
+        <img src="./public/images/line-qrcode.png" alt="Pluwfun LINE 官方帳號 QR code" />
+      </section>
+    </main>
+
+    <section id="admin" class="admin-view" hidden>
+      <div class="admin-header">
+        <div>
+          <p class="eyebrow">管理後台</p>
+          <h1>訂單、庫存、派單與分潤</h1>
+        </div>
+        <a class="button secondary" href="#top">回到前台</a>
+      </div>
+
+      <div class="admin-grid">
+        <section class="panel">
+          <h2>庫存資料</h2>
+          <div id="inventoryTable"></div>
+          <button id="resetDemo" class="button ghost" type="button">重設示範資料</button>
+        </section>
+        <section class="panel">
+          <h2>收入視覺總覽</h2>
+          <div id="financeCards" class="finance-cards"></div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h2>訂單管理</h2>
+        <div id="adminOrders" class="admin-orders"></div>
+      </section>
+    </section>
+
+    <div id="toast" class="toast" hidden></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
