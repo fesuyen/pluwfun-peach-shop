@@ -599,18 +599,18 @@ function checkoutAdvice() {
     return {
       title: "差一點就能享揪團優惠",
       text: `再加購 ${5 - boxes} 盒，即可享滿 5 盒折 150 元。`,
-      primary: "加到 5 盒享優惠",
-      secondary: "維持目前數量",
-      primaryAction: () => addBoxesToTarget(5),
+      primary: "回去加購",
+      secondary: "不加購，謝謝你支持在地果農",
+      primaryAction: returnToProducts,
     };
   }
   if (mode === "general" && boxes < 10) {
     return {
       title: "已享滿 5 盒優惠，再加購更划算",
       text: `再加購 ${10 - boxes} 盒，滿 10 盒可折 350 元。`,
-      primary: "加到 10 盒折 350",
-      secondary: "維持目前優惠",
-      primaryAction: () => addBoxesToTarget(10),
+      primary: "回去加購",
+      secondary: "不加購，謝謝你支持在地果農",
+      primaryAction: returnToProducts,
     };
   }
   if (mode === "general") {
@@ -628,7 +628,7 @@ function checkoutAdvice() {
   }
   return {
     title: "已套用付費會員飛鼠幣優惠",
-    text: "本次桃子每盒可折抵 50 飛鼠幣，系統將依訂購盒數自動計算可折抵金額。",
+    text: "本次桃子每盒可折抵 50 飛鼠幣，系統將依訂購盒數自動計算可折抵金額。送出訂單後，請到 Pluwfun LINE 官方帳號補傳付款或會員申請截圖，方便平台確認。",
     primary: "確認送出訂單",
     secondary: "返回檢查",
     primaryAction: () => {
@@ -643,6 +643,11 @@ function setMemberMode(mode) {
   const input = $(`input[name="memberMode"][value="${mode}"]`);
   if (input) input.checked = true;
   renderAll();
+}
+
+function returnToProducts() {
+  closeCheckoutModal();
+  $("#productList")?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function addBoxesToTarget(targetBoxes) {
@@ -680,12 +685,33 @@ function showCheckoutModal() {
     closeCheckoutModal();
     $("#orderForm").requestSubmit();
   });
+  document.body.classList.add("modal-open");
 }
 
 function closeCheckoutModal() {
   const modal = $("#checkoutModal");
   modal.hidden = true;
   modal.style.display = "none";
+  document.body.classList.remove("modal-open");
+}
+
+function showOrderSubmittedModal(order) {
+  const needsProof = order.memberMode === "paid" || order.memberMode === "join" || order.memberMode === "general";
+  const modal = $("#checkoutModal");
+  $("#checkoutModalTitle").textContent = `訂單已送出：${order.id}`;
+  $("#checkoutModalText").textContent = needsProof
+    ? "請到 Pluwfun LINE 官方帳號傳送付款截圖、會員申請截圖或會員資料，平台確認後會協助安排出貨；若資料已補傳，請等待工作人員回覆。"
+    : "謝謝你支持在地果農。訂單已建立，Pluwfun 會依訂購順序與採收狀況安排通知。";
+  $("#checkoutPrimaryAction").textContent = "到 LINE 補傳截圖";
+  $("#checkoutSecondaryAction").textContent = "我知道了";
+  modal.hidden = false;
+  modal.style.display = "grid";
+  document.body.classList.add("modal-open");
+  $("#checkoutPrimaryAction").onclick = () => {
+    window.open("https://lin.ee/5vs3GWy", "_blank", "noopener");
+    closeCheckoutModal();
+  };
+  $("#checkoutSecondaryAction").onclick = closeCheckoutModal;
 }
 
 function renderAll() {
@@ -778,6 +804,11 @@ function resizeImageFile(file) {
 
 async function createOrder(event) {
   event.preventDefault();
+  if (!event.currentTarget.checkValidity()) {
+    closeCheckoutModal();
+    event.currentTarget.reportValidity();
+    return;
+  }
   if (totalBoxes() === 0) {
     showToast("請先選擇五月桃規格與盒數。");
     return;
@@ -854,8 +885,8 @@ async function createOrder(event) {
   saveOrderToCloud(order);
   checkoutConfirmed = false;
   resetOrderForm();
-  showToast(`訂單 ${order.id} 已送出，請到 Pluwfun LINE 傳訂單編號與付款截圖。`);
   location.hash = "#top";
+  showOrderSubmittedModal(order);
 }
 
 function resetOrderForm() {
