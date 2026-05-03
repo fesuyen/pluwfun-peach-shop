@@ -199,13 +199,6 @@ function orderWorkflow(order) {
   return order.workflow;
 }
 
-function orderDisplayStatus(order) {
-  const workflow = orderWorkflow(order);
-  if (workflow.settled) return { label: "完成訂單", className: "status-settled" };
-  if (!workflow.paid) return { label: "待收款", className: "status-new" };
-  return { label: "處理中", className: "status-shipping" };
-}
-
 function orderSequenceText(index) {
   return `出貨順序 ${index + 1}`;
 }
@@ -1006,108 +999,6 @@ function renderFinanceCards() {
   `;
 }
 
-function renderAdminOrders() {
-  if (firebaseReady && !adminUser) {
-    $("#adminOrders").innerHTML = `
-      <p class="demo-note">Firebase 已連線。為了保護訂單個資，請先登入管理員帳號，後台才會載入雲端訂單。</p>
-    `;
-    return;
-  }
-
-  const orders = getOrders();
-  if (!orders.length) {
-    $("#adminOrders").innerHTML = `
-      <p class="demo-note">${dataModeNote()}</p>
-      <p class="small">目前尚無訂單。你可以先回前台送出一筆測試訂單。</p>
-    `;
-    return;
-  }
-
-  $("#adminOrders").innerHTML = `
-    <p class="demo-note">${dataModeNote()}</p>
-    ${orders.map((order, index) => {
-    const meta = orderDisplayStatus(order);
-    const settlement = calculateSettlement(order);
-    const memberLabel = memberModeLabel(order.memberMode);
-    const workflow = orderWorkflow(order);
-    return `
-      <article class="order-card">
-        <div class="order-card-header">
-          <div>
-            <div class="sequence-pill">${orderSequenceText(index)}</div>
-            <h3>${order.id}｜${order.customerName}</h3>
-            <div class="small">${new Date(order.createdAt).toLocaleString("zh-TW")}｜${order.customerPhone}｜${order.customerEmail || "未填 Gmail"}｜LINE：${order.lineName}</div>
-          </div>
-          <span class="badge ${meta.className}">${meta.label}</span>
-        </div>
-        <div class="status-line"><span>會員狀態</span><strong>${memberLabel}</strong></div>
-        <div class="status-line"><span>LINE 登記電話</span><strong>${order.lineMemberPhone || "未填寫"}</strong></div>
-        <div class="status-line"><span>商品</span><strong>${order.items.map((item) => `${item.name} ${item.qty} 盒`).join("、")}</strong></div>
-        <div class="status-line"><span>配送</span><strong>${deliveryLabel(order.deliveryMode)}</strong></div>
-        <div class="status-line"><span>配送日期</span><strong>${deliveryDateText(order)}</strong></div>
-        ${adminShipmentOverview(order)}
-        <div class="status-line"><span>應收總額</span><strong>${money(order.total)}</strong></div>
-        <div class="status-line"><span>農民分潤</span><strong>${money(settlement.farmerShare)}</strong></div>
-        <div class="status-line"><span>平台收入</span><strong>${money(settlement.platformIncome)}</strong></div>
-        <details>
-          <summary>查看出貨與分潤明細</summary>
-          <p class="small">商品原價 ${money(settlement.itemSubtotal)}，免費會員折扣 -${money(order.groupDiscount || 0)}，付費會員飛鼠幣折抵 -${money(order.coinDiscount || 0)}，行政服務費 ${money(settlement.serviceFee)}，會員費 ${money(order.memberFee)}。</p>
-          <p class="small">${shipmentText(order)}</p>
-          ${proofsMarkup(order)}
-        </details>
-        <details class="edit-order">
-          <summary>異動編輯訂單</summary>
-          ${orderEditForm(order)}
-        </details>
-        <div class="admin-actions">
-          ${STATUS_STEPS.map((status) => statusButton(order.id, status, workflow[status])).join("")}
-          <button type="button" data-copy="${order.id}">複製農民出貨明細</button>
-        </div>
-      </article>
-    `;
-  }).join("")}
-  `;
-
-  $$("[data-status]").forEach((button) => {
-    button.addEventListener("click", () => updateOrderStatus(button.dataset.orderId, button.dataset.status));
-  });
-  $$("[data-copy]").forEach((button) => {
-    button.addEventListener("click", () => copyFarmerMessage(button.dataset.copy));
-  });
-  $$("[data-edit-order]").forEach((button) => {
-    button.addEventListener("click", () => saveOrderEdit(button.dataset.editOrder));
-  });
-  $$("[data-first-date]").forEach((input) => {
-    input.addEventListener("change", () => {
-      const orderId = input.dataset.firstDate;
-      $$(`[data-edit-date="${orderId}"]`).slice(1).forEach((dateInput) => {
-        if (!dateInput.value) dateInput.value = input.value;
-      });
-    });
-  });
-  $$("[data-edit-pickup-random]").forEach((input) => {
-    input.addEventListener("change", () => {
-      const orderId = input.dataset.editPickupRandom;
-      const dateInput = $(`[data-edit-field="pickupDate"][data-order-id="${orderId}"]`);
-      if (dateInput) {
-        dateInput.disabled = input.checked;
-        if (input.checked) dateInput.value = "";
-      }
-    });
-  });
-  $$("[data-edit-date-random]").forEach((input) => {
-    input.addEventListener("change", () => {
-      const orderId = input.dataset.editDateRandom;
-      const index = input.dataset.shipIndex;
-      const dateInput = $(`[data-edit-date="${orderId}"][data-ship-index="${index}"]`);
-      if (dateInput) {
-        dateInput.disabled = input.checked;
-        if (input.checked) dateInput.value = "";
-      }
-    });
-  });
-}
-
 function dataModeNote() {
   if (firebaseReady && adminUser) return "目前已連線 Firebase：訂單、庫存與後台異動會同步到雲端資料庫。";
   if (firebaseReady) return "目前已連線 Firebase：前台可新增訂單；後台需要管理員登入後才會讀取雲端訂單。";
@@ -1282,25 +1173,6 @@ function toDateTimeInput(value) {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
-function updateOrderStatus(orderId, status) {
-  const orders = getOrders();
-  const order = orders.find((item) => item.id === orderId);
-  if (!order) return;
-  const workflow = orderWorkflow(order);
-  if (status === "new") {
-    workflow.new = true;
-    workflow.paid = false;
-  } else {
-    workflow[status] = !workflow[status];
-    if (workflow[status]) workflow.new = false;
-  }
-  const activeStatuses = STATUS_STEPS.filter((step) => workflow[step]);
-  order.status = activeStatuses.at(-1) || "new";
-  saveOrders(orders);
-  if (location.hash === "#farmer") renderFarmer();
-  else renderAdmin();
-}
-
 function saveOrderEdit(orderId) {
   const orders = getOrders();
   const order = orders.find((item) => item.id === orderId);
@@ -1398,58 +1270,6 @@ async function copyFarmerMessage(orderId) {
   ].join("\n");
   await navigator.clipboard.writeText(message);
   showToast("已複製農民出貨明細。");
-}
-
-function renderFarmer() {
-  const container = $("#farmerOrders");
-  if (!container) return;
-  if (firebaseReady && !adminUser) {
-    container.innerHTML = `
-      <p class="demo-note">請先使用提供給農民的帳號登入，登入後即可查看出貨順序並更新配送狀態。</p>
-      <div class="admin-login-form farmer-login-form">
-        <label>Email
-          <input id="adminEmail" type="email" autocomplete="username" list="adminEmailList" placeholder="農民或管理員信箱" />
-          <datalist id="adminEmailList">${savedAdminEmails().map((email) => `<option value="${email}"></option>`).join("")}</datalist>
-        </label>
-        <label>密碼<input id="adminPassword" type="password" autocomplete="current-password" placeholder="登入密碼" /></label>
-        <button class="button primary" type="button" id="adminLogin">登入查看出貨清單</button>
-      </div>
-    `;
-    $("#adminLogin").addEventListener("click", loginAdmin);
-    return;
-  }
-  const orders = getOrders();
-  if (!orders.length) {
-    container.innerHTML = `<p class="demo-note">目前尚無出貨訂單。</p>`;
-    return;
-  }
-  container.innerHTML = orders.map((order, index) => {
-    const workflow = orderWorkflow(order);
-    const meta = orderDisplayStatus(order);
-    return `
-      <article class="order-card farmer-card">
-        <div class="order-card-header">
-          <div>
-            <div class="sequence-pill">${orderSequenceText(index)}</div>
-            <h3>${order.id}｜${order.customerName}</h3>
-            <div class="small">${deliveryLabel(order.deliveryMode)}｜${deliveryDateText(order)}</div>
-          </div>
-          <span class="badge ${meta.className}">${meta.label}</span>
-        </div>
-        ${adminShipmentOverview(order)}
-        <div class="admin-actions farmer-actions">
-          ${["dispatched", "shipping", "done"].map((status) => statusButton(order.id, status, workflow[status])).join("")}
-          <button type="button" data-copy="${order.id}">複製出貨明細</button>
-        </div>
-      </article>
-    `;
-  }).join("");
-  $$("[data-status]").forEach((button) => {
-    button.addEventListener("click", () => updateOrderStatus(button.dataset.orderId, button.dataset.status));
-  });
-  $$("[data-copy]").forEach((button) => {
-    button.addEventListener("click", () => copyFarmerMessage(button.dataset.copy));
-  });
 }
 
 function renderAdmin() {
