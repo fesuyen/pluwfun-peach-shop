@@ -1244,6 +1244,25 @@ function invoiceMarkup(order) {
   `;
 }
 
+function adminInvoiceSummary(order) {
+  const invoice = order.invoice || {};
+  if (!invoice.required) return "";
+  return `
+    <div class="invoice-detail admin-invoice-detail">
+      <div class="invoice-detail-title">需要開立發票</div>
+      <div class="invoice-detail-grid">
+        <span>開立範圍</span><strong>${invoice.label || "整筆訂單"}</strong>
+        <span>發票抬頭</span><strong>${invoice.title || "未填"}</strong>
+        <span>統一編號</span><strong>${invoice.taxId || "無"}</strong>
+        <span>收件人</span><strong>${invoice.recipient || "未填"}</strong>
+        <span>聯絡電話</span><strong>${invoice.phone || "未填"}</strong>
+        <span>郵寄地址</span><strong>${invoice.address || "未填"}</strong>
+        <span>發票稅金</span><strong>計稅 ${money(invoice.base || 0)}，5% 稅金 ${money(invoice.tax || 0)}</strong>
+      </div>
+    </div>
+  `;
+}
+
 function proofsMarkup(order) {
   const proofs = order.proofs || {};
   const entries = [
@@ -1478,7 +1497,7 @@ async function copyFarmerMessage(orderId) {
 
 function renderAdmin() {
   renderAdminLogin();
-  const locked = firebaseReady && !adminUser;
+  const locked = !adminUser;
   $("#adminMainGrid").hidden = locked;
   $("#adminOrderPanel").hidden = locked;
   if (locked) return;
@@ -1666,6 +1685,7 @@ function renderAdminOrderCard(order, shippingIndex) {
         <span class="badge ${meta.className}">${meta.label}</span>
       </div>
       ${order.invoice?.required ? `<div class="invoice-alert">需要開發票｜${order.invoice.label || "整筆訂單"}｜稅金 ${money(order.invoice.tax || 0)}</div>` : ""}
+      ${adminInvoiceSummary(order)}
       <div class="status-line"><span>會員狀態</span><strong>${memberLabel}</strong></div>
       <div class="status-line"><span>LINE 登記電話</span><strong>${order.lineMemberPhone || "未填寫"}</strong></div>
       <div class="status-line"><span>商品</span><strong>${order.items.map((item) => `${item.name} ${item.qty} 盒`).join("、")}</strong></div>
