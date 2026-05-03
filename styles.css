@@ -1098,9 +1098,10 @@ body.modal-open {
 }
 
 .check-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 24px 1fr;
   gap: 12px;
-  align-items: flex-start;
+  align-items: center;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1109,7 +1110,12 @@ body.modal-open {
 }
 
 .check-card input {
-  margin-top: 4px;
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--green);
 }
 
 .check-card span {
@@ -1122,6 +1128,23 @@ body.modal-open {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
+}
+
+.invoice-fields[hidden],
+#invoiceShipmentWrap[hidden] {
+  display: none;
+}
+
+.invoice-fields .choice-row input {
+  width: auto;
+  min-height: auto;
+  padding: 0;
+}
+
+.invoice-fields input:disabled,
+.invoice-fields select:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
 }
 
 .invoice-alert {
