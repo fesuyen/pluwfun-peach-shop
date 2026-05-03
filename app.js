@@ -423,6 +423,21 @@ function invoiceLabelForCurrentOrder() {
   return shipment.label || `地址${selectedInvoiceShipmentIndex() + 1}`;
 }
 
+function fillInvoiceFromShipment(force = false) {
+  const recipientInput = $("#invoiceRecipient");
+  const phoneInput = $("#invoicePhone");
+  const addressInput = $("#invoiceAddress");
+  if (!recipientInput || !phoneInput || !addressInput) return;
+  if (!isInvoiceRequested() || selectedInvoiceScope() !== "shipment") return;
+
+  const shipment = state.shipments[selectedInvoiceShipmentIndex()];
+  if (!shipment) return;
+
+  if (force || !recipientInput.value.trim()) recipientInput.value = shipment.recipient || "";
+  if (force || !phoneInput.value.trim()) phoneInput.value = shipment.phone || "";
+  if (force || !addressInput.value.trim()) addressInput.value = shipment.address || "";
+}
+
 function invoiceFromForm(summary) {
   if (!isInvoiceRequested()) {
     return { required: false, tax: 0, base: 0, totalWithTax: summary.total };
@@ -912,9 +927,10 @@ function renderInvoiceControls() {
   const shipmentSelect = $("#invoiceShipment");
   if (!requiredInput || !fields || !shipmentWrap || !shipmentSelect) return;
 
-  fields.hidden = !requiredInput.checked;
+  const requested = requiredInput.checked;
+  fields.hidden = !requested;
   const mode = selectedRadio("deliveryMode");
-  const allowShipmentScope = requiredInput.checked && mode !== "pickup" && state.shipments.length > 0 && totalBoxes() > 0;
+  const allowShipmentScope = requested && mode !== "pickup" && state.shipments.length > 0 && totalBoxes() > 0;
   const shipmentScopeInput = $("input[name='invoiceScope'][value='shipment']");
   const wholeScopeInput = $("input[name='invoiceScope'][value='whole']");
   if (shipmentScopeInput) {
@@ -922,24 +938,43 @@ function renderInvoiceControls() {
     if (!allowShipmentScope && shipmentScopeInput.checked && wholeScopeInput) wholeScopeInput.checked = true;
   }
 
-  shipmentWrap.hidden = !allowShipmentScope || selectedInvoiceScope() !== "shipment";
   const current = shipmentSelect.value;
   shipmentSelect.innerHTML = state.shipments
     .map((shipment, index) => `<option value="${index}">${shipment.label}｜${totalBoxes(shipment.items)} 盒</option>`)
     .join("");
   if (current && Number(current) < state.shipments.length) shipmentSelect.value = current;
-  shipmentSelect.disabled = !allowShipmentScope || selectedInvoiceScope() !== "shipment";
-  fields.querySelectorAll("input, select").forEach((input) => {
-    if (input === requiredInput) return;
-    input.disabled = !requiredInput.checked || input.disabled && input.name !== "invoiceScope";
-  });
-  if (shipmentScopeInput) shipmentScopeInput.disabled = !allowShipmentScope;
 
-  [requiredInput, shipmentSelect, ...$$("input[name='invoiceScope']")]
-    .filter(Boolean)
-    .forEach((input) => {
-      input.onchange = () => renderAll();
-    });
+  const shipmentScopeSelected = selectedInvoiceScope() === "shipment";
+  shipmentWrap.hidden = !allowShipmentScope || !shipmentScopeSelected;
+  shipmentSelect.disabled = !allowShipmentScope || !shipmentScopeSelected;
+
+  fields.querySelectorAll("input, select").forEach((input) => {
+    if (input.name === "invoiceScope") {
+      input.disabled = !requested || (input.value === "shipment" && !allowShipmentScope);
+      return;
+    }
+    if (input.id === "invoiceShipment") {
+      input.disabled = !allowShipmentScope || !shipmentScopeSelected;
+      return;
+    }
+    input.disabled = !requested;
+  });
+
+  if (requested && shipmentScopeSelected) fillInvoiceFromShipment(false);
+
+  requiredInput.onchange = () => renderAll();
+  if (wholeScopeInput) wholeScopeInput.onchange = () => renderAll();
+  if (shipmentScopeInput) {
+    shipmentScopeInput.onchange = () => {
+      fillInvoiceFromShipment(true);
+      renderAll();
+    };
+  }
+  shipmentSelect.onchange = () => {
+    fillInvoiceFromShipment(true);
+    renderSummary();
+  };
+
   [$("#invoiceTitle"), $("#invoiceTaxId"), $("#invoiceRecipient"), $("#invoicePhone"), $("#invoiceAddress")]
     .filter(Boolean)
     .forEach((input) => {
