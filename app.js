@@ -880,16 +880,17 @@ function showOrderSubmittedModal(order) {
   const modal = $("#checkoutModal");
   $("#checkoutModalTitle").textContent = `訂單已送出：${order.id}`;
   $("#checkoutModalText").textContent = needsProof
-    ? "請到 Pluwfun LINE 官方帳號傳送付款截圖、會員申請截圖或會員資料，平台確認後會協助安排出貨；若資料已補傳，請等待工作人員回覆。"
+    ? "訂單已建立，請先記下訂單編號。接著到 Pluwfun LINE 官方帳號傳送付款截圖、會員申請截圖或會員資料；平台確認後會協助安排出貨。"
     : "謝謝你支持在地果農。訂單已建立，Pluwfun 會依訂購順序與採收狀況安排通知。";
-  $("#checkoutPrimaryAction").textContent = "到 LINE 補傳截圖";
+  $("#checkoutPrimaryAction").textContent = "開啟 LINE 補傳截圖";
   $("#checkoutSecondaryAction").textContent = "我知道了";
   modal.hidden = false;
   modal.style.display = "grid";
   document.body.classList.add("modal-open");
   $("#checkoutPrimaryAction").onclick = () => {
     window.open("https://lin.ee/5vs3GWy", "_blank", "noopener");
-    closeCheckoutModal();
+    $("#checkoutModalText").textContent = `LINE 已另開新視窗。請回傳訂單編號 ${order.id}、付款證明截圖與會員資料；此頁可先保留，確認後再關閉。`;
+    $("#checkoutPrimaryAction").textContent = "再次開啟 LINE";
   };
   $("#checkoutSecondaryAction").onclick = closeCheckoutModal;
 }
@@ -913,7 +914,7 @@ function renderInvoiceControls() {
 
   fields.hidden = !requiredInput.checked;
   const mode = selectedRadio("deliveryMode");
-  const allowShipmentScope = requiredInput.checked && mode !== "pickup" && state.shipments.length > 0;
+  const allowShipmentScope = requiredInput.checked && mode !== "pickup" && state.shipments.length > 0 && totalBoxes() > 0;
   const shipmentScopeInput = $("input[name='invoiceScope'][value='shipment']");
   const wholeScopeInput = $("input[name='invoiceScope'][value='whole']");
   if (shipmentScopeInput) {
@@ -927,12 +928,22 @@ function renderInvoiceControls() {
     .map((shipment, index) => `<option value="${index}">${shipment.label}｜${totalBoxes(shipment.items)} 盒</option>`)
     .join("");
   if (current && Number(current) < state.shipments.length) shipmentSelect.value = current;
+  shipmentSelect.disabled = !allowShipmentScope || selectedInvoiceScope() !== "shipment";
+  fields.querySelectorAll("input, select").forEach((input) => {
+    if (input === requiredInput) return;
+    input.disabled = !requiredInput.checked || input.disabled && input.name !== "invoiceScope";
+  });
+  if (shipmentScopeInput) shipmentScopeInput.disabled = !allowShipmentScope;
 
-  [requiredInput, shipmentSelect, ...$$("input[name='invoiceScope']"), $("#invoiceTitle"), $("#invoiceTaxId"), $("#invoiceRecipient"), $("#invoicePhone"), $("#invoiceAddress")]
+  [requiredInput, shipmentSelect, ...$$("input[name='invoiceScope']")]
+    .filter(Boolean)
+    .forEach((input) => {
+      input.onchange = () => renderAll();
+    });
+  [$("#invoiceTitle"), $("#invoiceTaxId"), $("#invoiceRecipient"), $("#invoicePhone"), $("#invoiceAddress")]
     .filter(Boolean)
     .forEach((input) => {
       input.oninput = () => renderSummary();
-      input.onchange = () => renderAll();
     });
 }
 
