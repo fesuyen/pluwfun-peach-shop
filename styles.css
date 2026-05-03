@@ -1165,6 +1165,36 @@ body.modal-open {
   background: #fffaf0;
 }
 
+.admin-invoice-detail {
+  border-color: #d89a20;
+  background: #fff7df;
+}
+
+.invoice-detail-title {
+  margin-bottom: 10px;
+  color: #684700;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.invoice-detail-grid {
+  display: grid;
+  grid-template-columns: 108px 1fr;
+  gap: 8px 12px;
+  align-items: start;
+}
+
+.invoice-detail-grid span {
+  color: #5f6f65;
+  font-weight: 700;
+}
+
+.invoice-detail-grid strong {
+  color: #13291c;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 960px) {
   .hero {
     min-height: 620px;
