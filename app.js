@@ -21,6 +21,8 @@ const SHIPPING_TIERS = [
   { max: 6, fee: 270 },
 ];
 
+const RANDOM_DATE = "__random__";
+
 const STATUS_META = {
   new: { label: "未收款", className: "status-new" },
   paid: { label: "確認收款", className: "status-paid" },
@@ -45,6 +47,19 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function money(value) {
   return `$${Math.round(value).toLocaleString("zh-TW")}`;
+}
+
+function isRandomDate(value) {
+  return value === RANDOM_DATE;
+}
+
+function dateInputValue(value) {
+  return isRandomDate(value) ? "" : value || "";
+}
+
+function deliveryDateLabel(value) {
+  if (isRandomDate(value)) return "日期隨機（出貨前一日通知）";
+  return value || "尚未指定";
 }
 
 function readStore(key, fallback) {
@@ -119,7 +134,7 @@ async function loadCloudInventory() {
 }
 
 async function loadCloudOrders() {
-  const q = cloud.query(cloud.collection(db, "orders"), cloud.orderBy("createdAt", "desc"));
+  const q = cloud.query(cloud.collection(db, "orders"), cloud.orderBy("createdAt", "asc"));
   const snapshot = await cloud.getDocs(q);
   const orders = snapshot.docs.map((docSnap) => docSnap.data());
   saveOrders(orders, { skipCloud: true });
@@ -193,6 +208,39 @@ function orderDisplayStatus(order) {
 
 function orderSequenceText(index) {
   return `出貨順序 ${index + 1}`;
+}
+
+function orderTime(order) {
+  const time = new Date(order.createdAt).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function sortByShippingPriority(orders) {
+  return [...orders].sort((a, b) => orderTime(a) - orderTime(b));
+}
+
+function isVoidedOrder(order) {
+  return Boolean(order.voidedAt || order.status === "voided");
+}
+
+function isTestOrder(order) {
+  if (order.isTest) return true;
+  const text = [order.customerName, order.lineName, order.customerPhone, order.customerEmail, order.id]
+    .filter(Boolean)
+    .join(" ");
+  return /test|demo|測試|測式|試單/i.test(text);
+}
+
+function activeOrders() {
+  return sortByShippingPriority(getOrders().filter((order) => !isVoidedOrder(order) && !isTestOrder(order)));
+}
+
+function testOrders() {
+  return sortByShippingPriority(getOrders().filter((order) => !isVoidedOrder(order) && isTestOrder(order)));
+}
+
+function voidedOrders() {
+  return sortByShippingPriority(getOrders().filter(isVoidedOrder));
 }
 
 function saveInventory(inventory, options = {}) {
@@ -445,13 +493,23 @@ function renderShipments() {
           <span>運費 ${money(0)}</span>
         </div>
         <label>希望自取日期
-          <input type="date" id="pickupDate" value="${state.pickupDate}" />
+          <input type="date" id="pickupDate" value="${dateInputValue(state.pickupDate)}" ${isRandomDate(state.pickupDate) ? "disabled" : ""} />
+        </label>
+        <label class="date-random-option">
+          <input type="checkbox" id="pickupDateRandom" ${isRandomDate(state.pickupDate) ? "checked" : ""} />
+          <span>日期隨機</span>
+          <small>出貨前一日通知</small>
         </label>
         <p class="small">實際自取時間會由 Pluwfun LINE 官方帳號確認。</p>
       </div>
     `;
     $("#pickupDate").addEventListener("change", (event) => {
       state.pickupDate = event.target.value;
+      renderSummary();
+    });
+    $("#pickupDateRandom").addEventListener("change", (event) => {
+      state.pickupDate = event.target.checked ? RANDOM_DATE : "";
+      renderShipments();
       renderSummary();
     });
     return;
@@ -494,10 +552,15 @@ function shipmentForm(shipment, index, editableItems) {
       <div class="field-grid">
         <label>收件人<input data-ship-field="recipient" data-ship-index="${index}" value="${shipment.recipient}" required /></label>
         <label>電話<input data-ship-field="phone" data-ship-index="${index}" value="${shipment.phone}" required /></label>
-        <label>希望收件日期<input type="date" data-ship-field="deliveryDate" data-ship-index="${index}" value="${shipment.deliveryDate || ""}" aria-describedby="ship-date-note-${index}" /></label>
+        <label>希望收件日期<input type="date" data-ship-field="deliveryDate" data-ship-index="${index}" value="${dateInputValue(shipment.deliveryDate)}" ${isRandomDate(shipment.deliveryDate) ? "disabled" : ""} aria-describedby="ship-date-note-${index}" /></label>
         <label>地址<input data-ship-field="address" data-ship-index="${index}" value="${shipment.address}" required placeholder="可改成代收件地址" /></label>
       </div>
-      <p class="small" id="ship-date-note-${index}">${dateHint}，實際到貨仍依採收、出貨與低溫宅配安排。</p>
+      <label class="date-random-option">
+        <input type="checkbox" data-ship-random="${index}" ${isRandomDate(shipment.deliveryDate) ? "checked" : ""} />
+        <span>日期隨機</span>
+        <small>出貨前一日通知</small>
+      </label>
+      <p class="small" id="ship-date-note-${index}">${dateHint}，實際到貨仍依採收、出貨與低溫宅配安排；若選日期隨機，出貨前一日通知。</p>
       <div class="shipment-products">
         ${PRODUCTS.map((product) => `
           <label>${product.name}
@@ -521,6 +584,20 @@ function bindShipmentFields() {
         });
         renderShipments();
       }
+    });
+  });
+
+  $$("[data-ship-random]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const index = Number(input.dataset.shipRandom);
+      state.shipments[index].deliveryDate = input.checked ? RANDOM_DATE : "";
+      if (index === 0 && input.checked) {
+        state.shipments.slice(1).forEach((shipment) => {
+          if (!shipment.deliveryDate) shipment.deliveryDate = RANDOM_DATE;
+        });
+      }
+      renderShipments();
+      renderSummary();
     });
   });
 
@@ -912,7 +989,7 @@ function renderInventory() {
 }
 
 function renderFinanceCards() {
-  const orders = getOrders();
+  const orders = activeOrders();
   const totals = orders.reduce((acc, order) => {
     const settlement = calculateSettlement(order);
     acc.sales += order.total;
@@ -1008,6 +1085,27 @@ function renderAdminOrders() {
       });
     });
   });
+  $$("[data-edit-pickup-random]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const orderId = input.dataset.editPickupRandom;
+      const dateInput = $(`[data-edit-field="pickupDate"][data-order-id="${orderId}"]`);
+      if (dateInput) {
+        dateInput.disabled = input.checked;
+        if (input.checked) dateInput.value = "";
+      }
+    });
+  });
+  $$("[data-edit-date-random]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const orderId = input.dataset.editDateRandom;
+      const index = input.dataset.shipIndex;
+      const dateInput = $(`[data-edit-date="${orderId}"][data-ship-index="${index}"]`);
+      if (dateInput) {
+        dateInput.disabled = input.checked;
+        if (input.checked) dateInput.value = "";
+      }
+    });
+  });
 }
 
 function dataModeNote() {
@@ -1023,7 +1121,7 @@ function adminShipmentOverview(order) {
       <div class="admin-shipment-list">
         <div class="admin-shipment-card">
           <strong>自取</strong>
-          <span>希望自取日期：${order.pickupDate || "尚未填寫"}</span>
+          <span>希望自取日期：${deliveryDateLabel(order.pickupDate)}</span>
           <span>地點：桃園市復興區高義里雪霧鬧 7鄰7號</span>
           <span>品項：${order.items.map((item) => `${item.name} ${item.qty} 盒`).join("、")}</span>
         </div>
@@ -1035,7 +1133,7 @@ function adminShipmentOverview(order) {
     <div class="admin-shipment-list">
       ${order.shipments.map((shipment) => `
         <div class="admin-shipment-card">
-          <strong>${shipment.label}｜${totalBoxes(shipment.items)} 盒｜${shipment.deliveryDate || "尚未填寫日期"}</strong>
+          <strong>${shipment.label}｜${totalBoxes(shipment.items)} 盒｜${deliveryDateLabel(shipment.deliveryDate)}</strong>
           <span>${shipment.recipient || "未填收件人"}　${shipment.phone || "未填電話"}</span>
           <span>${shipment.address || "未填地址"}</span>
           <span>${allocationText(shipment.items)}</span>
@@ -1078,14 +1176,14 @@ function shipmentText(order) {
   if (order.deliveryMode === "pickup") return "自取：桃園市復興區高義里雪霧鬧 7鄰7號。";
   return order.shipments.map((shipment) => {
     const items = PRODUCTS.map((product) => `${product.name} ${shipment.items[product.id] || 0} 盒`).join("、");
-    const date = shipment.deliveryDate ? `，配送日期 ${shipment.deliveryDate}` : "";
+    const date = shipment.deliveryDate ? `，配送日期 ${deliveryDateLabel(shipment.deliveryDate)}` : "";
     return `${shipment.label}：${shipment.recipient} ${shipment.phone}，${shipment.address}${date}，${items}`;
   }).join(" / ");
 }
 
 function deliveryDateText(order) {
-  if (order.deliveryMode === "pickup") return order.pickupDate || "尚未指定";
-  const dates = order.shipments.map((shipment) => `${shipment.label}：${shipment.deliveryDate || "尚未指定"}`);
+  if (order.deliveryMode === "pickup") return deliveryDateLabel(order.pickupDate);
+  const dates = order.shipments.map((shipment) => `${shipment.label}：${deliveryDateLabel(shipment.deliveryDate)}`);
   return dates.join("、");
 }
 
@@ -1128,7 +1226,12 @@ function pickupEditForm(order) {
   return `
     <div class="edit-grid">
       <label>自取日期
-        <input type="date" data-edit-field="pickupDate" data-order-id="${order.id}" value="${order.pickupDate || ""}" />
+        <input type="date" data-edit-field="pickupDate" data-order-id="${order.id}" value="${dateInputValue(order.pickupDate)}" ${isRandomDate(order.pickupDate) ? "disabled" : ""} />
+      </label>
+      <label class="date-random-option">
+        <input type="checkbox" data-edit-pickup-random="${order.id}" ${isRandomDate(order.pickupDate) ? "checked" : ""} />
+        <span>日期隨機</span>
+        <small>出貨前一日通知</small>
       </label>
     </div>
   `;
@@ -1142,7 +1245,7 @@ function shipmentsEditForm(order, firstDate) {
           <h4>${shipment.label}｜${totalBoxes(shipment.items)} 盒</h4>
           <div class="edit-grid">
             <label>配送日期
-              <input type="date" ${index === 0 ? `data-first-date="${order.id}"` : ""} data-edit-date="${order.id}" data-ship-index="${index}" value="${shipment.deliveryDate || firstDate}" />
+              <input type="date" ${index === 0 ? `data-first-date="${order.id}"` : ""} data-edit-date="${order.id}" data-ship-index="${index}" value="${dateInputValue(shipment.deliveryDate || firstDate)}" ${isRandomDate(shipment.deliveryDate || firstDate) ? "disabled" : ""} />
             </label>
             <label>收件人
               <input data-edit-ship-field="recipient" data-order-id="${order.id}" data-ship-index="${index}" value="${shipment.recipient || ""}" />
@@ -1154,6 +1257,11 @@ function shipmentsEditForm(order, firstDate) {
               <input data-edit-ship-field="address" data-order-id="${order.id}" data-ship-index="${index}" value="${shipment.address || ""}" />
             </label>
           </div>
+          <label class="date-random-option">
+            <input type="checkbox" data-edit-date-random="${order.id}" data-ship-index="${index}" ${isRandomDate(shipment.deliveryDate || firstDate) ? "checked" : ""} />
+            <span>日期隨機</span>
+            <small>出貨前一日通知</small>
+          </label>
           <div class="edit-products">
             ${PRODUCTS.map((product) => `
               <label>${product.name}
@@ -1228,7 +1336,8 @@ function saveOrderEdit(orderId) {
     .map((product) => ({ id: product.id, name: product.name, price: product.price, qty: nextQuantities[product.id] }));
 
   if (nextDeliveryMode === "pickup") {
-    order.pickupDate = $(`[data-edit-field="pickupDate"][data-order-id="${orderId}"]`)?.value || order.pickupDate || "";
+    const pickupRandom = $(`[data-edit-pickup-random="${orderId}"]`)?.checked;
+    order.pickupDate = pickupRandom ? RANDOM_DATE : ($(`[data-edit-field="pickupDate"][data-order-id="${orderId}"]`)?.value || "");
     order.shipments = [];
   } else {
     const editedShipments = order.shipments.length ? order.shipments : [emptyShipment("地址一", { ...nextQuantities })];
@@ -1239,13 +1348,14 @@ function saveOrderEdit(orderId) {
         const input = $(`[data-edit-ship-product="${product.id}"][data-order-id="${orderId}"][data-ship-index="${index}"]`);
         return [product.id, Math.max(0, Number(input?.value ?? shipment.items[product.id] ?? 0))];
       }));
+      const randomDate = $(`[data-edit-date-random="${orderId}"][data-ship-index="${index}"]`)?.checked;
       return {
         ...shipment,
         label: `地址${index + 1}`,
         recipient: fieldValue("recipient"),
         phone: fieldValue("phone"),
         address: fieldValue("address"),
-        deliveryDate: dateInput?.value || order.shipments[0]?.deliveryDate || "",
+        deliveryDate: randomDate ? RANDOM_DATE : (dateInput?.value || ""),
         items,
       };
     });
@@ -1447,6 +1557,308 @@ function resetDemoData() {
   renderAll();
   renderAdmin();
   showToast("示範資料已重設。");
+}
+
+function orderDisplayStatus(order) {
+  if (isVoidedOrder(order)) return { label: "已報廢", className: "status-voided" };
+  const workflow = orderWorkflow(order);
+  if (workflow.settled) return { label: "完成訂單", className: "status-settled" };
+  if (!workflow.paid) return { label: "待收款", className: "status-new" };
+  return { label: "處理中", className: "status-shipping" };
+}
+
+function renderAdminOrders() {
+  if (firebaseReady && !adminUser) {
+    $("#adminOrders").innerHTML = `
+      <p class="demo-note">Firebase 已連線。為了保護訂單資料，請先登入管理員帳號，後台才會載入雲端訂單。</p>
+    `;
+    return;
+  }
+
+  const allOrders = getOrders();
+  if (!allOrders.length) {
+    $("#adminOrders").innerHTML = `
+      <p class="demo-note">${dataModeNote()}</p>
+      <p class="small">目前尚無訂單。你可以先回前台送出一筆測試訂單。</p>
+    `;
+    return;
+  }
+
+  const officialOrders = activeOrders();
+  const sampleOrders = testOrders();
+  const cancelledOrders = voidedOrders();
+
+  $("#adminOrders").innerHTML = `
+    <p class="demo-note">${dataModeNote()}</p>
+    <div class="admin-order-summary">
+      <span>正式出貨 ${officialOrders.length} 筆</span>
+      <span>測試訂單 ${sampleOrders.length} 筆</span>
+      <span>報廢取消 ${cancelledOrders.length} 筆</span>
+    </div>
+    ${renderAdminOrderGroup("正式出貨訂單", officialOrders, "依下訂時間由早到晚排列，最上方就是目前最優先通知農民處理的訂單。", true)}
+    ${renderAdminOrderGroup("測試訂單", sampleOrders, "測試資料不列入收入統計，也不會出現在農民出貨清單。", false)}
+    ${renderAdminOrderGroup("報廢／取消訂單", cancelledOrders, "已報廢訂單會保留紀錄，庫存已補回；需要時可還原。", false)}
+  `;
+
+  bindAdminOrderActions();
+}
+
+function renderAdminOrderGroup(title, orders, note, countAsShippingPriority) {
+  const open = countAsShippingPriority ? " open" : "";
+  if (!orders.length) {
+    return `
+      <details class="admin-order-group"${open}>
+        <summary>${title}｜0 筆</summary>
+        <p class="small">${note}</p>
+      </details>
+    `;
+  }
+  return `
+    <details class="admin-order-group"${open}>
+      <summary>${title}｜${orders.length} 筆</summary>
+      <p class="small">${note}</p>
+      ${orders.map((order, index) => renderAdminOrderCard(order, countAsShippingPriority ? index : null)).join("")}
+    </details>
+  `;
+}
+
+function renderAdminOrderCard(order, shippingIndex) {
+  const meta = orderDisplayStatus(order);
+  const settlement = calculateSettlement(order);
+  const memberLabel = memberModeLabel(order.memberMode);
+  const workflow = orderWorkflow(order);
+  const isVoided = isVoidedOrder(order);
+  const isTest = isTestOrder(order);
+  const sequenceLabel = shippingIndex === null ? (isVoided ? "已報廢" : "測試訂單") : orderSequenceText(shippingIndex);
+  return `
+    <article class="order-card${isVoided ? " voided-order" : ""}${isTest ? " test-order" : ""}">
+      <div class="order-card-header">
+        <div>
+          <div class="sequence-pill">${sequenceLabel}</div>
+          <h3>${order.id}｜${order.customerName}</h3>
+          <div class="small">${new Date(order.createdAt).toLocaleString("zh-TW")}｜${order.customerPhone}｜${order.customerEmail || "未填 Gmail"}｜LINE：${order.lineName}</div>
+          ${order.voidReason ? `<div class="small warning-text">報廢原因：${order.voidReason}</div>` : ""}
+        </div>
+        <span class="badge ${meta.className}">${meta.label}</span>
+      </div>
+      <div class="status-line"><span>會員狀態</span><strong>${memberLabel}</strong></div>
+      <div class="status-line"><span>LINE 登記電話</span><strong>${order.lineMemberPhone || "未填寫"}</strong></div>
+      <div class="status-line"><span>商品</span><strong>${order.items.map((item) => `${item.name} ${item.qty} 盒`).join("、")}</strong></div>
+      <div class="status-line"><span>配送</span><strong>${deliveryLabel(order.deliveryMode)}</strong></div>
+      <div class="status-line"><span>配送日期</span><strong>${deliveryDateText(order)}</strong></div>
+      ${adminShipmentOverview(order)}
+      <div class="status-line"><span>應收總額</span><strong>${money(order.total)}</strong></div>
+      <div class="status-line"><span>農民分潤</span><strong>${money(settlement.farmerShare)}</strong></div>
+      <div class="status-line"><span>平台收入</span><strong>${money(settlement.platformIncome)}</strong></div>
+      <details>
+        <summary>查看出貨與分潤明細</summary>
+        <p class="small">商品原價 ${money(settlement.itemSubtotal)}，免費會員折扣 -${money(order.groupDiscount || 0)}，付費會員飛鼠幣折抵 -${money(order.coinDiscount || 0)}，行政服務費 ${money(settlement.serviceFee)}，會員費 ${money(order.memberFee)}。</p>
+        <p class="small">${shipmentText(order)}</p>
+        ${proofsMarkup(order)}
+      </details>
+      <details class="edit-order">
+        <summary>異動編輯訂單</summary>
+        ${orderEditForm(order)}
+      </details>
+      <div class="admin-actions">
+        ${isVoided ? "" : STATUS_STEPS.map((status) => statusButton(order.id, status, workflow[status])).join("")}
+        <button type="button" data-copy="${order.id}">複製農民出貨明細</button>
+        ${isVoided ? `<button type="button" class="restore-button" data-restore-order="${order.id}">還原訂單</button>` : ""}
+        ${isVoided ? "" : `<button type="button" class="test-button" data-test-order="${order.id}">${isTest ? "改回正式訂單" : "標記測試"}</button>`}
+        ${isVoided ? "" : `<button type="button" class="danger-button" data-void-order="${order.id}">報廢／取消</button>`}
+      </div>
+    </article>
+  `;
+}
+
+function bindAdminOrderActions() {
+  $$("[data-status]").forEach((button) => {
+    button.addEventListener("click", () => updateOrderStatus(button.dataset.orderId, button.dataset.status));
+  });
+  $$("[data-copy]").forEach((button) => {
+    button.addEventListener("click", () => copyFarmerMessage(button.dataset.copy));
+  });
+  $$("[data-edit-order]").forEach((button) => {
+    button.addEventListener("click", () => saveOrderEdit(button.dataset.editOrder));
+  });
+  $$("[data-test-order]").forEach((button) => {
+    button.addEventListener("click", () => toggleTestOrder(button.dataset.testOrder));
+  });
+  $$("[data-void-order]").forEach((button) => {
+    button.addEventListener("click", () => voidOrder(button.dataset.voidOrder));
+  });
+  $$("[data-restore-order]").forEach((button) => {
+    button.addEventListener("click", () => restoreOrder(button.dataset.restoreOrder));
+  });
+  $$("[data-first-date]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const orderId = input.dataset.firstDate;
+      $$(`[data-edit-date="${orderId}"]`).slice(1).forEach((dateInput) => {
+        if (!dateInput.value) dateInput.value = input.value;
+      });
+    });
+  });
+  $$("[data-edit-pickup-random]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const orderId = input.dataset.editPickupRandom;
+      const dateInput = $(`[data-edit-field="pickupDate"][data-order-id="${orderId}"]`);
+      if (dateInput) {
+        dateInput.disabled = input.checked;
+        if (input.checked) dateInput.value = "";
+      }
+    });
+  });
+  $$("[data-edit-date-random]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const orderId = input.dataset.editDateRandom;
+      const index = input.dataset.shipIndex;
+      const dateInput = $(`[data-edit-date="${orderId}"][data-ship-index="${index}"]`);
+      if (dateInput) {
+        dateInput.disabled = input.checked;
+        if (input.checked) dateInput.value = "";
+      }
+    });
+  });
+}
+
+function updateOrderStatus(orderId, status) {
+  const orders = getOrders();
+  const order = orders.find((item) => item.id === orderId);
+  if (!order || isVoidedOrder(order)) return;
+  const workflow = orderWorkflow(order);
+  if (status === "new") {
+    workflow.new = true;
+    workflow.paid = false;
+  } else {
+    workflow[status] = !workflow[status];
+    if (workflow[status]) workflow.new = false;
+  }
+  const activeStatuses = STATUS_STEPS.filter((step) => workflow[step]);
+  order.status = activeStatuses.at(-1) || "new";
+  saveOrders(orders);
+  if (location.hash === "#farmer") renderFarmer();
+  else renderAdmin();
+}
+
+function toggleTestOrder(orderId) {
+  const orders = getOrders();
+  const order = orders.find((item) => item.id === orderId);
+  if (!order || isVoidedOrder(order)) return;
+  order.isTest = !order.isTest;
+  saveOrders(orders);
+  renderAdmin();
+  showToast(order.isTest ? "已標記為測試訂單，不列入出貨與收入統計。" : "已改回正式訂單。");
+}
+
+function voidOrder(orderId) {
+  const orders = getOrders();
+  const order = orders.find((item) => item.id === orderId);
+  if (!order || isVoidedOrder(order)) return;
+  const ok = window.confirm(`確定要將 ${order.id} 報廢／取消嗎？庫存會自動補回，訂單會移到報廢區保留紀錄。`);
+  if (!ok) return;
+  restoreInventoryForOrder(order);
+  order.status = "voided";
+  order.voidedAt = new Date().toISOString();
+  order.voidReason = window.prompt("請輸入報廢原因，例如：客人取消、重複測試、資料錯誤。", "客人取消") || "未填寫";
+  saveOrders(orders);
+  renderAdmin();
+  showToast("訂單已報廢，庫存已補回。");
+}
+
+function restoreOrder(orderId) {
+  const orders = getOrders();
+  const order = orders.find((item) => item.id === orderId);
+  if (!order || !isVoidedOrder(order)) return;
+  if (!reserveInventoryForOrder(order)) return;
+  order.status = "new";
+  order.voidedAt = "";
+  order.voidReason = "";
+  order.inventoryRestored = false;
+  order.workflow = { new: true, paid: false, dispatched: false, shipping: false, done: false, settled: false };
+  saveOrders(orders);
+  renderAdmin();
+  showToast("訂單已還原，庫存已重新保留。");
+}
+
+function restoreInventoryForOrder(order) {
+  if (order.inventoryRestored) return;
+  const inventory = getInventory();
+  const quantities = orderQuantities(order);
+  PRODUCTS.forEach((product) => {
+    inventory[product.id] = (inventory[product.id] ?? 0) + quantities[product.id];
+  });
+  order.inventoryRestored = true;
+  saveInventory(inventory);
+}
+
+function reserveInventoryForOrder(order) {
+  const inventory = getInventory();
+  const quantities = orderQuantities(order);
+  const enoughStock = PRODUCTS.every((product) => (inventory[product.id] ?? 0) >= quantities[product.id]);
+  if (!enoughStock) {
+    showToast("目前庫存不足，無法還原這筆訂單。請先調整庫存後再還原。");
+    return false;
+  }
+  PRODUCTS.forEach((product) => {
+    inventory[product.id] = (inventory[product.id] ?? 0) - quantities[product.id];
+  });
+  saveInventory(inventory);
+  return true;
+}
+
+function renderFarmer() {
+  const container = $("#farmerOrders");
+  if (!container) return;
+  if (firebaseReady && !adminUser) {
+    container.innerHTML = `
+      <p class="demo-note">請先使用提供給農民的帳號登入，登入後即可查看正式出貨順序並更新配送狀態。</p>
+      <div class="admin-login-form farmer-login-form">
+        <label>Email
+          <input id="adminEmail" type="email" autocomplete="username" list="adminEmailList" placeholder="農民或管理員信箱" />
+          <datalist id="adminEmailList">${savedAdminEmails().map((email) => `<option value="${email}"></option>`).join("")}</datalist>
+        </label>
+        <label>密碼<input id="adminPassword" type="password" autocomplete="current-password" placeholder="登入密碼" /></label>
+        <button class="button primary" type="button" id="adminLogin">登入查看出貨清單</button>
+      </div>
+    `;
+    $("#adminLogin").addEventListener("click", loginAdmin);
+    return;
+  }
+  const orders = activeOrders();
+  if (!orders.length) {
+    container.innerHTML = `<p class="demo-note">目前尚無正式出貨訂單。</p>`;
+    return;
+  }
+  container.innerHTML = `
+    <p class="demo-note">正式訂單依下訂時間由早到晚排列，請從出貨順序 1 開始處理。</p>
+    ${orders.map((order, index) => {
+      const workflow = orderWorkflow(order);
+      const meta = orderDisplayStatus(order);
+      return `
+        <article class="order-card farmer-card">
+          <div class="order-card-header">
+            <div>
+              <div class="sequence-pill">${orderSequenceText(index)}</div>
+              <h3>${order.id}｜${order.customerName}</h3>
+              <div class="small">${deliveryLabel(order.deliveryMode)}｜${deliveryDateText(order)}</div>
+            </div>
+            <span class="badge ${meta.className}">${meta.label}</span>
+          </div>
+          ${adminShipmentOverview(order)}
+          <div class="admin-actions farmer-actions">
+            ${["dispatched", "shipping", "done"].map((status) => statusButton(order.id, status, workflow[status])).join("")}
+            <button type="button" data-copy="${order.id}">複製出貨明細</button>
+          </div>
+        </article>
+      `;
+    }).join("")}
+  `;
+  $$("[data-status]").forEach((button) => {
+    button.addEventListener("click", () => updateOrderStatus(button.dataset.orderId, button.dataset.status));
+  });
+  $$("[data-copy]").forEach((button) => {
+    button.addEventListener("click", () => copyFarmerMessage(button.dataset.copy));
+  });
 }
 
 function handleRoute() {
