@@ -378,8 +378,114 @@ function calculateSummary() {
   const group = groupDiscount();
   const shipping = shipmentTotals().fee;
   const membership = memberFee();
-  const total = itemSubtotal + shipping + membership - coin - group;
-  return { itemSubtotal, discount: coin + group, coinDiscount: coin, groupDiscount: group, shipping, membership, total, boxes: totalBoxes() };
+  const beforeTaxTotal = itemSubtotal + shipping + membership - coin - group;
+  const invoiceBase = invoiceBaseForCurrentOrder({ itemSubtotal, coinDiscount: coin, groupDiscount: group, shipping, membership, boxes: totalBoxes(), beforeTaxTotal });
+  const invoiceTax = invoiceBase > 0 ? Math.round(invoiceBase * 0.05) : 0;
+  const total = beforeTaxTotal + invoiceTax;
+  return { itemSubtotal, discount: coin + group, coinDiscount: coin, groupDiscount: group, shipping, membership, beforeTaxTotal, invoiceBase, invoiceTax, total, boxes: totalBoxes() };
+}
+
+function isInvoiceRequested() {
+  return Boolean($("#invoiceRequired")?.checked);
+}
+
+function selectedInvoiceScope() {
+  return selectedRadio("invoiceScope") || "whole";
+}
+
+function selectedInvoiceShipmentIndex() {
+  return Math.max(0, Number($("#invoiceShipment")?.value || 0));
+}
+
+function productSubtotalForItems(items) {
+  return PRODUCTS.reduce((sum, product) => sum + Number(items?.[product.id] || 0) * product.price, 0);
+}
+
+function invoiceBaseForCurrentOrder(summary) {
+  if (!isInvoiceRequested()) return 0;
+  const mode = selectedRadio("deliveryMode");
+  if (selectedInvoiceScope() !== "shipment" || mode === "pickup" || !state.shipments.length) {
+    return Math.max(0, summary.beforeTaxTotal);
+  }
+  const shipment = state.shipments[selectedInvoiceShipmentIndex()] || state.shipments[0];
+  const boxes = totalBoxes(shipment.items);
+  const productAmount = productSubtotalForItems(shipment.items);
+  const shippingAmount = mode === "single" ? summary.shipping : shippingFeeForBoxes(boxes);
+  const discountShare = summary.boxes > 0 ? Math.round((summary.coinDiscount + summary.groupDiscount) * (boxes / summary.boxes)) : 0;
+  return Math.max(0, productAmount + shippingAmount - discountShare);
+}
+
+function invoiceLabelForCurrentOrder() {
+  if (!isInvoiceRequested()) return "未開立發票";
+  const mode = selectedRadio("deliveryMode");
+  if (selectedInvoiceScope() !== "shipment" || mode === "pickup" || !state.shipments.length) return "整筆訂單";
+  const shipment = state.shipments[selectedInvoiceShipmentIndex()] || state.shipments[0];
+  return shipment.label || `地址${selectedInvoiceShipmentIndex() + 1}`;
+}
+
+function invoiceFromForm(summary) {
+  if (!isInvoiceRequested()) {
+    return { required: false, tax: 0, base: 0, totalWithTax: summary.total };
+  }
+  return {
+    required: true,
+    scope: selectedInvoiceScope(),
+    shipmentIndex: selectedInvoiceScope() === "shipment" ? selectedInvoiceShipmentIndex() : null,
+    label: invoiceLabelForCurrentOrder(),
+    title: $("#invoiceTitle")?.value.trim() || "",
+    taxId: $("#invoiceTaxId")?.value.trim() || "",
+    recipient: $("#invoiceRecipient")?.value.trim() || "",
+    phone: $("#invoicePhone")?.value.trim() || "",
+    address: $("#invoiceAddress")?.value.trim() || "",
+    deliveryMethod: "paper-mail",
+    base: summary.invoiceBase,
+    tax: summary.invoiceTax,
+    totalWithTax: summary.total,
+  };
+}
+
+function validateInvoiceForm(summary) {
+  const invoice = invoiceFromForm(summary);
+  if (!invoice.required) return true;
+  if (!invoice.title || !invoice.recipient || !invoice.phone || !invoice.address) {
+    showToast("需要開發票時，請填寫發票抬頭、收件人、電話與郵寄地址。");
+    $("#invoiceFields")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return false;
+  }
+  return true;
+}
+
+function invoiceBaseForOrder(order) {
+  const discount = (order.coinDiscount || 0) + (order.groupDiscount || 0);
+  const wholeBase = (order.itemSubtotal || 0) + (order.memberFee || 0) + (order.shippingFee || 0) - discount;
+  const invoice = order.invoice || {};
+  if (!invoice.required || invoice.scope !== "shipment" || order.deliveryMode === "pickup" || !order.shipments?.length) {
+    return Math.max(0, wholeBase);
+  }
+  const shipment = order.shipments[Math.max(0, Number(invoice.shipmentIndex || 0))] || order.shipments[0];
+  const boxes = totalBoxes(shipment.items);
+  const allBoxes = totalBoxes(orderQuantities(order));
+  const productAmount = productSubtotalForItems(shipment.items);
+  const shippingAmount = order.deliveryMode === "single" ? (order.shippingFee || 0) : shippingFeeForBoxes(boxes);
+  const discountShare = allBoxes > 0 ? Math.round(discount * (boxes / allBoxes)) : 0;
+  return Math.max(0, productAmount + shippingAmount - discountShare);
+}
+
+function recalculateOrderInvoice(order) {
+  if (!order.invoice?.required) {
+    if (order.invoice) {
+      order.invoice.tax = 0;
+      order.invoice.base = 0;
+      order.invoice.totalWithTax = order.total;
+    }
+    return 0;
+  }
+  const base = invoiceBaseForOrder(order);
+  const tax = Math.round(base * 0.05);
+  order.invoice.base = base;
+  order.invoice.tax = tax;
+  order.invoice.totalWithTax = (order.itemSubtotal || 0) + (order.memberFee || 0) + (order.shippingFee || 0) - ((order.coinDiscount || 0) + (order.groupDiscount || 0)) + tax;
+  return tax;
 }
 
 function calculateSettlement(order) {
@@ -428,7 +534,9 @@ function recalculateOrder(order) {
   order.coinDiscount = coinDiscountForOrder(order.memberMode, quantities);
   order.groupDiscount = groupDiscountForOrder(order.memberMode, quantities);
   order.shippingFee = shippingFeeForOrder(order, quantities);
-  order.total = order.itemSubtotal + order.memberFee + order.shippingFee - order.coinDiscount - order.groupDiscount;
+  const beforeTaxTotal = order.itemSubtotal + order.memberFee + order.shippingFee - order.coinDiscount - order.groupDiscount;
+  const invoiceTax = recalculateOrderInvoice(order);
+  order.total = beforeTaxTotal + invoiceTax;
   return order;
 }
 
@@ -633,7 +741,9 @@ function renderSummary() {
     <div class="summary-line"><span>免費會員折扣</span><strong>-${money(summary.groupDiscount)}</strong></div>
     <div class="summary-line"><span>付費會員飛鼠幣折抵</span><strong>-${money(summary.coinDiscount)}</strong></div>
     <div class="summary-line"><span>低溫宅配費</span><strong>${money(summary.shipping)}</strong></div>
+    <div class="summary-line"><span>發票 5% 稅金</span><strong>${money(summary.invoiceTax)}</strong></div>
     <div class="summary-line summary-total"><span>應付總額</span><strong>${money(summary.total)}</strong></div>
+    ${summary.invoiceTax > 0 ? `<p class="notice">發票範圍：${invoiceLabelForCurrentOrder()}，稅金以 ${money(summary.invoiceBase)} 外加 5% 計算。</p>` : ""}
     <p class="small">總盒數 ${summary.boxes} 盒。${canUseCoin() ? "付費會員已套用每盒 50 飛鼠幣折抵。" : "一般會員與非會員尚不套用飛鼠幣折抵，平台確認付費會員資格後可於後台調整。"}</p>
     ${nextDiscountText ? `<p class="notice">${nextDiscountText}</p>` : ""}
     ${remainingCoins !== null ? `<p class="notice">會員開通後發放飛鼠幣：2000 - ${summary.coinDiscount} = ${remainingCoins} 飛鼠幣，本次專案活動飛鼠幣使用期限為 1.5 年。</p>` : ""}
@@ -787,10 +897,43 @@ function showOrderSubmittedModal(order) {
 function renderAll() {
   renderProducts();
   renderShipments();
+  renderInvoiceControls();
   renderSummary();
   renderMemberSavingsHint();
   if (location.hash === "#admin") renderAdmin();
   if (location.hash === "#farmer") renderFarmer();
+}
+
+function renderInvoiceControls() {
+  const requiredInput = $("#invoiceRequired");
+  const fields = $("#invoiceFields");
+  const shipmentWrap = $("#invoiceShipmentWrap");
+  const shipmentSelect = $("#invoiceShipment");
+  if (!requiredInput || !fields || !shipmentWrap || !shipmentSelect) return;
+
+  fields.hidden = !requiredInput.checked;
+  const mode = selectedRadio("deliveryMode");
+  const allowShipmentScope = requiredInput.checked && mode !== "pickup" && state.shipments.length > 0;
+  const shipmentScopeInput = $("input[name='invoiceScope'][value='shipment']");
+  const wholeScopeInput = $("input[name='invoiceScope'][value='whole']");
+  if (shipmentScopeInput) {
+    shipmentScopeInput.disabled = !allowShipmentScope;
+    if (!allowShipmentScope && shipmentScopeInput.checked && wholeScopeInput) wholeScopeInput.checked = true;
+  }
+
+  shipmentWrap.hidden = !allowShipmentScope || selectedInvoiceScope() !== "shipment";
+  const current = shipmentSelect.value;
+  shipmentSelect.innerHTML = state.shipments
+    .map((shipment, index) => `<option value="${index}">${shipment.label}｜${totalBoxes(shipment.items)} 盒</option>`)
+    .join("");
+  if (current && Number(current) < state.shipments.length) shipmentSelect.value = current;
+
+  [requiredInput, shipmentSelect, ...$$("input[name='invoiceScope']"), $("#invoiceTitle"), $("#invoiceTaxId"), $("#invoiceRecipient"), $("#invoicePhone"), $("#invoiceAddress")]
+    .filter(Boolean)
+    .forEach((input) => {
+      input.oninput = () => renderSummary();
+      input.onchange = () => renderAll();
+    });
 }
 
 function renderMemberSavingsHint() {
@@ -884,6 +1027,8 @@ async function createOrder(event) {
     return;
   }
   if (!validateMultiShipment()) return;
+  const summary = calculateSummary();
+  if (!validateInvoiceForm(summary)) return;
 
   if (!checkoutConfirmed) {
     showCheckoutModal();
@@ -902,7 +1047,6 @@ async function createOrder(event) {
   });
   saveInventory(inventory);
 
-  const summary = calculateSummary();
   const items = PRODUCTS
     .filter((product) => state.quantities[product.id] > 0)
     .map((product) => ({ id: product.id, name: product.name, price: product.price, qty: state.quantities[product.id] }));
@@ -926,6 +1070,7 @@ async function createOrder(event) {
     coinDiscount: summary.coinDiscount,
     groupDiscount: summary.groupDiscount,
     total: summary.total,
+    invoice: invoiceFromForm(summary),
     status: "new",
     workflow: {
       new: true,
@@ -1038,6 +1183,19 @@ function statusButton(orderId, status, isActive) {
   const meta = STATUS_META[status];
   const active = isActive ? " active" : "";
   return `<button type="button" class="workflow-button ${meta.className}${active}" data-order-id="${orderId}" data-status="${status}">${meta.label}</button>`;
+}
+
+function invoiceMarkup(order) {
+  const invoice = order.invoice || {};
+  if (!invoice.required) return `<p class="small">發票：未申請。</p>`;
+  return `
+    <div class="invoice-detail">
+      <strong>發票資訊</strong>
+      <p class="small">開立範圍：${invoice.label || "整筆訂單"}｜計稅金額 ${money(invoice.base || 0)}｜5% 稅金 ${money(invoice.tax || 0)}</p>
+      <p class="small">抬頭：${invoice.title || "未填"}｜統編：${invoice.taxId || "無"}</p>
+      <p class="small">郵寄：${invoice.recipient || "未填"}｜${invoice.phone || "未填"}｜${invoice.address || "未填"}</p>
+    </div>
+  `;
 }
 
 function proofsMarkup(order) {
@@ -1461,6 +1619,7 @@ function renderAdminOrderCard(order, shippingIndex) {
         </div>
         <span class="badge ${meta.className}">${meta.label}</span>
       </div>
+      ${order.invoice?.required ? `<div class="invoice-alert">需要開發票｜${order.invoice.label || "整筆訂單"}｜稅金 ${money(order.invoice.tax || 0)}</div>` : ""}
       <div class="status-line"><span>會員狀態</span><strong>${memberLabel}</strong></div>
       <div class="status-line"><span>LINE 登記電話</span><strong>${order.lineMemberPhone || "未填寫"}</strong></div>
       <div class="status-line"><span>商品</span><strong>${order.items.map((item) => `${item.name} ${item.qty} 盒`).join("、")}</strong></div>
@@ -1474,6 +1633,7 @@ function renderAdminOrderCard(order, shippingIndex) {
         <summary>查看出貨與分潤明細</summary>
         <p class="small">商品原價 ${money(settlement.itemSubtotal)}，免費會員折扣 -${money(order.groupDiscount || 0)}，付費會員飛鼠幣折抵 -${money(order.coinDiscount || 0)}，行政服務費 ${money(settlement.serviceFee)}，會員費 ${money(order.memberFee)}。</p>
         <p class="small">${shipmentText(order)}</p>
+        ${invoiceMarkup(order)}
         ${proofsMarkup(order)}
       </details>
       <details class="edit-order">
