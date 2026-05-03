@@ -164,48 +164,48 @@
           </div>
 
           <div class="panel payment-panel">
-            <h3>5. ????????</h3>
-            <p>???????? Pluwfun LINE ???????????????????????????????????? LINE ????????????????????????????????</p>
+            <h3>5. 付款、會員與發票</h3>
+            <p>送出訂單後，請至 Pluwfun LINE 官方帳號傳送「訂單編號、付款證明截圖、會員申請或加入截圖」。工作人員會依 LINE 訊息與後台訂單核對付款狀況及會員申請，確認後更新收款與會員狀態。</p>
 
             <div class="payment-box">
               <div>
-                <strong>??????</strong>
-                <p>???????822?<br />???0000598540546934</p>
-                <a href="https://smeapp.ctbcbank.com/content/dam/ctbc-sbib/zh_tw/general/PRO_URL.html?TWSMEM_Transfer_TX001&token=e3b2aa266ca76acf458948478680e098d1b0f317" target="_blank" rel="noreferrer">?????? e-Cash APP ??????</a>
-                <p class="small">????????2026/05/06 ?????????????????????? QR Code ???</p>
+                <strong>銀行轉帳資訊</strong>
+                <p>中國信託銀行（822）<br />帳號：0000598540546934</p>
+                <a href="https://smeapp.ctbcbank.com/content/dam/ctbc-sbib/zh_tw/general/PRO_URL.html?TWSMEM_Transfer_TX001&token=e3b2aa266ca76acf458948478680e098d1b0f317" target="_blank" rel="noreferrer">開啟中國信託 e-Cash APP 自動帶入帳號</a>
+                <p class="small">連結由銀行提供，2026/05/06 後可能失效；若連結無法使用，請改用銀行帳號或 QR Code 轉帳。</p>
               </div>
-              <img src="./public/images/payment-qrcode.jpg" alt="?????? QR Code" />
+              <img src="./public/images/payment-qrcode.jpg" alt="中國信託付款 QR Code" />
             </div>
 
             <div class="support-actions">
-              <a class="button primary" href="https://lin.ee/5vs3GWy" target="_blank" rel="noreferrer">?? LINE ???</a>
-              <a class="button ghost" href="https://www.facebook.com/profile.php?id=61578150914774" target="_blank" rel="noreferrer">?? Pluwfun ????</a>
+              <a class="button primary" href="https://lin.ee/5vs3GWy" target="_blank" rel="noreferrer">加入 LINE 傳證明</a>
+              <a class="button ghost" href="https://www.facebook.com/profile.php?id=61578150914774" target="_blank" rel="noreferrer">前往 Pluwfun 粉絲專頁</a>
             </div>
 
             <div class="invoice-box">
               <label class="check-card">
                 <input id="invoiceRequired" type="checkbox" />
                 <span>
-                  <strong>??????</strong>
-                  <small>???? 5%???????????</small>
+                  <strong>需要開立發票</strong>
+                  <small>稅金外加 5%，發票採郵寄方式寄出。</small>
                 </span>
               </label>
               <div id="invoiceFields" class="invoice-fields" hidden>
                 <div class="choice-row">
-                  <label><input type="radio" name="invoiceScope" value="whole" checked /> ??????</label>
-                  <label><input type="radio" name="invoiceScope" value="shipment" /> ??????????</label>
+                  <label><input type="radio" name="invoiceScope" value="whole" checked /> 整筆訂單開立</label>
+                  <label><input type="radio" name="invoiceScope" value="shipment" /> 指定某個收件地址開立</label>
                 </div>
-                <label id="invoiceShipmentWrap" hidden>????
+                <label id="invoiceShipmentWrap" hidden>指定地址
                   <select id="invoiceShipment"></select>
                 </label>
                 <div class="field-grid">
-                  <label>????<input id="invoiceTitle" placeholder="???????????????" /></label>
-                  <label>????<input id="invoiceTaxId" inputmode="numeric" placeholder="???????????" /></label>
-                  <label>???<input id="invoiceRecipient" placeholder="?????" /></label>
-                  <label>????<input id="invoicePhone" placeholder="????????" /></label>
+                  <label>發票抬頭<input id="invoiceTitle" placeholder="個人可填姓名；公司請填公司抬頭" /></label>
+                  <label>統一編號<input id="invoiceTaxId" inputmode="numeric" placeholder="公司戶必填，個人可留空" /></label>
+                  <label>收件人<input id="invoiceRecipient" placeholder="發票收件人" /></label>
+                  <label>聯絡電話<input id="invoicePhone" placeholder="發票寄送聯絡電話" /></label>
                 </div>
-                <label>??????<input id="invoiceAddress" placeholder="????????????" /></label>
-                <p class="small">?????????????????????????????????????????</p>
+                <label>發票郵寄地址<input id="invoiceAddress" placeholder="請填寫可收紙本發票的地址" /></label>
+                <p class="small">若選擇指定地址，後台會標示此筆訂單只有該地址需要開立發票，方便工作人員核對與郵寄。</p>
               </div>
             </div>
           </div>
