@@ -936,6 +936,10 @@ textarea {
   display: none;
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 .modal-card {
   width: min(520px, 100%);
   padding: 24px;
